@@ -112,6 +112,10 @@
         let sessionState = null;
         let sessionId = localStorage.getItem('session_id') || null;
 
+        function parseBold(text) {
+            return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        }
+
         function toggleChat() {
             const widget = document.getElementById('chatWidget');
             const isHidden = widget.classList.contains('hidden');
@@ -159,11 +163,14 @@
                                 } else if (typeof data.content === 'string') {
                                     fullResponse += data.content;
                                 }
-                                botBubble.innerHTML = fullResponse;
+                                botBubble.innerHTML = parseBold(fullResponse);
                             } else {
                                 if (data.session_id) {
                                     sessionId = data.session_id;
                                     localStorage.setItem('session_id', sessionId);
+                                }
+                                if (data.interactive_options) {
+                                    setTimeout(() => renderInteractiveOptions(data.interactive_options), 300);
                                 }
                             }
                         }
@@ -236,7 +243,7 @@
                                 } else if (typeof data.content === 'string') {
                                     fullResponse += data.content;
                                 }
-                                botBubble.innerHTML = fullResponse;
+                                botBubble.innerHTML = parseBold(fullResponse);
                             } else {
                                 sessionState = data.session_state;
                                 if (data.session_id) {
@@ -244,10 +251,8 @@
                                     localStorage.setItem('session_id', sessionId);
                                 }
                                 
-                                if (data.is_complete) {
-                                    setTimeout(() => {
-                                        addMessage('✨ Data lengkap! Terima kasih!', false);
-                                    }, 500);
+                                if (data.interactive_options) {
+                                    setTimeout(() => renderInteractiveOptions(data.interactive_options, data.fortune_full), 300);
                                 }
                             }
                         }
@@ -277,6 +282,65 @@
             } catch (error) {
                 console.error('Reset error:', error);
             }
+        }
+
+        function startFortune() {
+            document.getElementById('messageInput').value = 'Ramalan Karir';
+            sendMessage();
+        }
+
+        function selectOption(value) {
+            document.getElementById('messageInput').value = value;
+            sendMessage();
+        }
+
+        function renderInteractiveOptions(options, fortuneData) {
+            const container = document.getElementById('chatContainer');
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'mt-2';
+
+            if (options.type === 'select') {
+                optionsDiv.innerHTML = `
+                    <div class="bg-white rounded-lg p-2 shadow max-w-xs">
+                        <select onchange="selectOption(this.value)" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="">Pilih bidang...</option>
+                            ${options.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+            } else if (options.type === 'quick_reply') {
+                optionsDiv.className = 'flex gap-2 mt-2 flex-wrap';
+                optionsDiv.innerHTML = options.options.map(opt => 
+                    `<button onclick="selectOption('${opt}')" class="bg-white border-2 border-purple-500 text-purple-600 px-4 py-2 rounded-full text-sm hover:bg-purple-500 hover:text-white transition">${opt}</button>`
+                ).join('');
+            } else if (options.type === 'fortune_button') {
+                optionsDiv.className = 'flex justify-start justify-items-start mt-2';
+                optionsDiv.innerHTML = `
+                    <button onclick="addMessage('${fortuneData.replace(/'/g, "\\'").replace(/\n/g, ' ')}', false)" 
+                        class="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-4 py-2 rounded-full text-sm hover:shadow-lg transition">
+                        ${options.text}
+                    </button>
+                `;
+            } else if (options.type === 'sso_button') {
+                optionsDiv.className = 'flex justify-start mt-2';
+                optionsDiv.innerHTML = `
+                    <a href="${options.url}" target="_blank" 
+                        class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full text-sm font-semibold hover:shadow-2xl hover:scale-105 transition-all inline-block">
+                        ${options.text}
+                    </a>
+                `;
+            } else if (options.type === 'fortune_trigger') {
+                optionsDiv.className = 'flex justify-start mt-2';
+                optionsDiv.innerHTML = `
+                    <button onclick="startFortune()" 
+                        class="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-5 py-2 rounded-full text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all">
+                        ${options.text}
+                    </button>
+                `;
+            }
+
+            container.appendChild(optionsDiv);
+            container.scrollTop = container.scrollHeight;
         }
 
         window.addEventListener('load', () => {

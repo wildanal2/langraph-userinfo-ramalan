@@ -62,12 +62,19 @@ async def start_message(request: StartRequest):
                 yield f"data: {json.dumps({'content': chunk.content, 'done': False})}\n\n"
                 await asyncio.sleep(0.01)
             
+            has_nama = user_data and user_data.get("nama") if user_data else False
+            
+            interactive_options = None
+            if has_nama:
+                interactive_options = {"type": "fortune_trigger", "text": "🔮 Ramalan Karir"}
+            
             final_data = {
                 "content": "",
                 "done": True,
                 "session_id": session_id,
                 "is_returning_user": user_data is not None,
-                "user_data": user_data or {}
+                "user_data": user_data or {},
+                "interactive_options": interactive_options
             }
             yield f"data: {json.dumps(final_data)}\n\n"
         except Exception as e:
@@ -97,7 +104,8 @@ async def chat_stream(request: ChatRequest):
                     "user_data": user_data or {},
                     "next_step": "nama",
                     "session_id": session_id,
-                    "is_returning_user": is_returning
+                    "is_returning_user": is_returning,
+                    "intent": "answering"
                 }
             
             state["messages"].append(HumanMessage(content=request.message))
@@ -120,7 +128,9 @@ async def chat_stream(request: ChatRequest):
                 "user_data": result["user_data"],
                 "next_step": result.get("next_step", "nama"),
                 "session_id": session_id,
-                "is_returning_user": is_returning
+                "is_returning_user": is_returning,
+                "fortune_full": result.get("fortune_full", ""),
+                "interactive_options": result.get("interactive_options")
             }
             
             final_chunk = {
@@ -129,7 +139,9 @@ async def chat_stream(request: ChatRequest):
                 "user_data": result["user_data"],
                 "is_complete": is_complete,
                 "session_state": serializable_state,
-                "session_id": session_id
+                "session_id": session_id,
+                "interactive_options": result.get("interactive_options"),
+                "fortune_full": result.get("fortune_full", "")
             }
             yield f"data: {json.dumps(final_chunk)}\n\n"
         

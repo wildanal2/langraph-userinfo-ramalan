@@ -18,3 +18,6 @@ class AgentState(TypedDict):
     next_step: str
     session_id: str
     is_returning_user: bool
+    intent: str
+    fortune_full: str
+    interactive_options: dict | None

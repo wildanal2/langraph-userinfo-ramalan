@@ -51,18 +51,104 @@ uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
 ```
 
 API Endpoints:
-- `POST /chat` - Send message and get response
+- `POST /start-message` - Initialize chat session
+- `POST /chat/stream` - Send message and get streaming response
 - `POST /reset` - Reset conversation state
 - `GET /health` - Health check
 
-### Example API Request
+### Example API Requests
+
+#### Start Message (SSE Stream)
 ```bash
-curl -X POST "http://localhost:8000/chat" \
+curl -X POST "http://localhost:8000/start-message" \
+  -H "Content-Type: application/json" \
+  -d '{"session_id": null}'
+```
+
+#### Chat Stream (SSE Stream)
+```bash
+curl -X POST "http://localhost:8000/chat/stream" \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "Hello!",
+    "message": "Wildan",
+    "session_id": "your-session-id",
     "session_state": null
   }'
+```
+
+## API Response Format
+
+### Streaming Response (SSE)
+Both `/start-message` and `/chat/stream` return Server-Sent Events:
+
+**Streaming chunks:**
+```json
+data: {"content": "word", "done": false}
+```
+
+**Final chunk:**
+```json
+data: {
+  "content": "",
+  "done": true,
+  "session_id": "uuid",
+  "user_data": {...},
+  "interactive_options": {...}
+}
+```
+
+### Interactive Options Format
+
+Standardized button/interaction format returned in `interactive_options`:
+
+#### 1. Fortune Trigger Button
+```json
+{
+  "type": "fortune_trigger",
+  "text": "🔮 Ramalan Karir"
+}
+```
+Triggers fortune generation when clicked.
+
+#### 2. SSO Redirect Button
+```json
+{
+  "type": "sso_button",
+  "text": "✨ Cek Hasil Lengkapnya",
+  "url": "https://sso-url.com?session_id=xxx"
+}
+```
+Redirects to external SSO with session tracking.
+
+#### 3. Quick Reply Buttons
+```json
+{
+  "type": "quick_reply",
+  "options": ["Aplikasi", "Desain", "Musik"]
+}
+```
+Multiple choice buttons for quick selection.
+
+#### 4. Select Dropdown
+```json
+{
+  "type": "select",
+  "options": ["Option 1", "Option 2"]
+}
+```
+Dropdown selection for many options.
+
+### User Data Structure
+```json
+{
+  "nama": "string",
+  "kota": "string",
+  "tanggal_lahir": "string",
+  "bidang_ekraf": "string",
+  "jumlah_komunitas_ekraf_disekitar": "string",
+  "email": "string",
+  "no_telepon": "string"
+}
 ```
 
 ## Project Structure
