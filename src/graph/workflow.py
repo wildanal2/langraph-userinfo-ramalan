@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
-from src.state import AgentState
-from src.nodes import chatbot_node, rag_node, classifier_node
+from src.models.state import AgentState
+from src.graph.nodes import chatbot_node, rag_node, classifier_node
 
 def route_entry(state: AgentState) -> str:
     if state["is_returning_user"]:

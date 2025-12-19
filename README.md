@@ -1,79 +1,144 @@
 # Creative Career Fortune Teller 🔮
 
-A gamified chatbot that collects user data through mystical, persuasive conversation using LangGraph and AWS Bedrock Nova models.
+Production-ready chatbot untuk mengumpulkan data user melalui percakapan yang engaging menggunakan LangGraph dan AWS Bedrock Nova.
 
 ## Features
 
-- 🎭 Mystical persona that makes data collection fun
-- 🧠 LangGraph state management for conversation flow
-- 🤖 AWS Bedrock Nova models for natural language understanding
-- 📊 Structured data extraction using Pydantic
-- 🚀 FastAPI backend for easy frontend integration
-- 🔄 Session state management
+- 🎭 Persona menarik untuk data collection
+- 🧠 LangGraph state management
+- 🤖 AWS Bedrock Nova models
+- 📊 Structured data extraction (Pydantic)
+- 🚀 FastAPI production-ready architecture
+- 🔄 Redis session management
+- 🛡️ Security (validation, CORS, sanitization)
+- 📝 Logging & error handling
+- 🔁 Automatic retry logic
+- 🏥 Health checks
+- 🧪 Test structure
 
-## Setup
+## Architecture
 
-### 1. Install uv (if not already installed)
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+src/
+├── api/                    # API layer
+│   ├── routes/            # API endpoints
+│   │   ├── chat.py        # Chat endpoints
+│   │   └── health.py      # Health checks
+│   ├── dependencies.py    # FastAPI dependencies
+│   ├── middleware.py      # Custom middleware
+│   └── main.py           # App factory
+├── core/                  # Core utilities
+│   ├── config.py         # Configuration management
+│   ├── exceptions.py     # Custom exceptions
+│   ├── logging.py        # Logging setup
+│   └── security.py       # Security utilities
+├── services/             # Business logic
+│   ├── llm_service.py    # LLM abstraction with retry
+│   ├── session_service.py # Session management
+│   └── prompt_service.py # Prompt templates
+├── models/               # Data models
+│   ├── state.py          # State definitions
+│   └── schemas.py        # API schemas
+├── graph/                # LangGraph workflow
+│   ├── nodes.py          # Graph nodes
+│   └── workflow.py       # Graph definition
+└── infrastructure/       # External services
+    ├── redis.py          # Redis client
+    └── aws.py            # AWS Bedrock client
 ```
 
-### 2. Create virtual environment and install dependencies
-```bash
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .
-```
+## Quick Setup
 
-### 3. Configure AWS credentials
 ```bash
+# 1. Install dependencies
+uv venv && source .venv/bin/activate
+make install
+
+# 2. Start Redis (pilih salah satu)
+docker run -d -p 6379:6379 redis:alpine  # Docker
+brew services start redis                 # macOS
+sudo systemctl start redis                # Linux
+
+# 3. Configure environment
 cp .env.example .env
-# Edit .env with your AWS credentials
+# Edit .env dengan AWS credentials Anda
+
+# 4. Run Server FastAPI
+make run-dev
+
+# 5. Run Html Testing
+python -m http.server 8181
 ```
 
-Required environment variables:
-- `AWS_ACCESS_KEY_ID`: Your AWS access key
-- `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
-- `AWS_REGION`: AWS region (default: us-east-1)
-- `BEDROCK_MODEL_ID`: Model to use (default: amazon.nova-lite-v1:0)
-- `SSO_REGISTER_URL`: Your Google SSO registration URL
+**Environment variables penting:**
+```env
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_REGION=us-east-1
+BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+ENVIRONMENT=development
+REDIS_URL=redis://127.0.0.1:6379
+```
 
 ## Usage
 
-### Option 1: CLI Testing
 ```bash
-python main.py
+make run          # Production
+make run-dev      # Development (auto-reload)
+make test         # Run tests
+make docker-up    # Docker deployment
+python main.py    # CLI testing
 ```
 
-### Option 2: FastAPI Server
+## API Endpoints
+
+### Health Check
 ```bash
-uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
+GET /health
 ```
 
-API Endpoints:
-- `POST /start-message` - Initialize chat session
-- `POST /chat/stream` - Send message and get streaming response
-- `POST /reset` - Reset conversation state
-- `GET /health` - Health check
-
-### Example API Requests
-
-#### Start Message (SSE Stream)
-```bash
-curl -X POST "http://localhost:8000/start-message" \
-  -H "Content-Type: application/json" \
-  -d '{"session_id": null}'
+Response:
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "dependencies": {
+    "redis": "connected",
+    "bedrock": "configured"
+  }
+}
 ```
 
-#### Chat Stream (SSE Stream)
+### Start Message (SSE Stream)
 ```bash
-curl -X POST "http://localhost:8000/chat/stream" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Wildan",
-    "session_id": "your-session-id",
-    "session_state": null
-  }'
+POST /start-message
+Content-Type: application/json
+
+{
+  "session_id": null
+}
+```
+
+### Chat Stream (SSE Stream)
+```bash
+POST /chat/stream
+Content-Type: application/json
+
+{
+  "message": "Wildan",
+  "session_id": "your-session-id",
+  "session_state": null
+}
+```
+
+### Reset Session
+```bash
+POST /reset
+Content-Type: application/json
+
+{
+  "session_id": "your-session-id"
+}
 ```
 
 ## API Response Format
@@ -99,8 +164,6 @@ data: {
 
 ### Interactive Options Format
 
-Standardized button/interaction format returned in `interactive_options`:
-
 #### 1. Fortune Trigger Button
 ```json
 {
@@ -108,7 +171,6 @@ Standardized button/interaction format returned in `interactive_options`:
   "text": "🔮 Ramalan Karir"
 }
 ```
-Triggers fortune generation when clicked.
 
 #### 2. SSO Redirect Button
 ```json
@@ -118,7 +180,6 @@ Triggers fortune generation when clicked.
   "url": "https://sso-url.com?session_id=xxx"
 }
 ```
-Redirects to external SSO with session tracking.
 
 #### 3. Quick Reply Buttons
 ```json
@@ -127,16 +188,6 @@ Redirects to external SSO with session tracking.
   "options": ["Aplikasi", "Desain", "Musik"]
 }
 ```
-Multiple choice buttons for quick selection.
-
-#### 4. Select Dropdown
-```json
-{
-  "type": "select",
-  "options": ["Option 1", "Option 2"]
-}
-```
-Dropdown selection for many options.
 
 ### User Data Structure
 ```json
@@ -151,58 +202,79 @@ Dropdown selection for many options.
 }
 ```
 
-## Project Structure
+## Production Deployment
 
-```
-.
-├── src/
-│   ├── __init__.py
-│   ├── config.py          # Environment configuration
-│   ├── state.py           # State schema definitions
-│   ├── nodes.py           # LangGraph node logic
-│   ├── graph.py           # LangGraph workflow
-│   └── api.py             # FastAPI endpoints
-├── main.py                # CLI runner
-├── pyproject.toml         # Project dependencies
-├── .env.example           # Environment template
-└── README.md
+```bash
+# Docker (Recommended)
+docker-compose up -d
+
+# Manual
+ENVIRONMENT=production python run.py
 ```
 
-## Data Collection Flow
+**Production checklist:**
+- Set `ENVIRONMENT=production`
+- Configure `ALLOWED_ORIGINS` dengan domain spesifik
+- Set `LOG_LEVEL=WARNING`
+- Gunakan production Redis
+- Enable HTTPS
+- Monitor `/health` endpoint
 
-1. **Name** - "What do they call you in the creative realm?"
-2. **Location** - "Where does your creative energy flow?"
-3. **Date of Birth** - "When did you enter this realm?"
-4. **Job Field** - "What is your creative calling?"
-5. **Email** - "Your digital soul address?"
-6. **Fortune** - Generate personalized creative horoscope
-7. **CTA** - Google SSO registration link
+**Security features:**
+- ✅ Input validation & sanitization
+- ✅ CORS whitelist
+- ✅ Request size limits
+- ✅ Error handling
+- ✅ Structured logging
+- ✅ Health checks
+- ✅ Retry logic
 
 ## Tech Stack
 
-- **Python 3.10+**
-- **LangChain** - LLM orchestration
-- **LangGraph** - State machine workflow
-- **AWS Bedrock** - Nova models for NLU
-- **FastAPI** - REST API backend
-- **Pydantic** - Data validation
-- **uv** - Fast Python package manager
+- Python 3.10+ | FastAPI | LangChain | LangGraph
+- AWS Bedrock (Nova) | Redis | Pydantic | Tenacity
 
 ## Development
 
-Run with auto-reload:
-```bash
-uvicorn src.api:app --reload
+**Project structure:**
+```
+src/
+├── api/              # HTTP endpoints & middleware
+├── core/             # Config, logging, security
+├── services/         # Business logic
+├── models/           # Data models
+├── graph/            # LangGraph workflow
+└── infrastructure/   # External services
 ```
 
-Test the graph logic:
+**Adding features:**
+1. Business logic → `services/`
+2. API endpoints → `api/routes/`
+3. Models → `models/`
+4. Tests → `tests/`
+
+**Code quality:**
 ```bash
-python main.py
+make format    # Format code
+make lint      # Check linting
+make quality   # Run all checks
 ```
-Test html chatbot:
-```bash
-python -m http.server 8181
-```
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Redis connection failed | `redis-cli ping` atau `docker run -d -p 6379:6379 redis:alpine` |
+| AWS credentials error | `aws configure` atau check `.env` |
+| Import errors | `make clean && make install` |
+| Port in use | `lsof -i :8000` dan kill process |
+
+## Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Setup cepat 5 menit
+- **[MIGRATION.md](MIGRATION.md)** - Panduan migrasi dari struktur lama
+- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Checklist production
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history
 
 ## License
 

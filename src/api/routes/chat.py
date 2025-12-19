@@ -1,71 +1,39 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage
+from src.models.schemas import StartRequest, ChatRequest
+from src.services import LLMService, SessionService, PromptService
 from src.graph import graph
-from src.redis_client import get_user_data, delete_user_data
+from src.core.logging import get_logger
+from src.api.dependencies import verify_content_length
 import json
 import asyncio
 import uuid
 
-app = FastAPI(title="Creative Fortune Teller API")
+logger = get_logger(__name__)
+router = APIRouter(tags=["chat"])
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+llm_service = LLMService()
+session_service = SessionService()
 
-class StartRequest(BaseModel):
-    session_id: str | None = None
-
-class ChatRequest(BaseModel):
-    message: str
-    session_id: str | None = None
-    session_state: dict | None = None
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
-
-@app.post("/start-message")
+@router.post("/start-message", dependencies=[Depends(verify_content_length)])
 async def start_message(request: StartRequest):
-    from langchain_aws import ChatBedrock
-    from src.config import settings
-    
     async def generate():
         try:
             session_id = request.session_id or str(uuid.uuid4())
-            user_data = get_user_data(session_id)
+            user_data = session_service.get_user_data(session_id)
             
-            llm = ChatBedrock(model_id=settings.bedrock_model_id, region_name=settings.aws_region)
-
             if user_data:
-                # Skenario: User Lama (Returning)
-                prompt = (
-                    f"Generate a short, friendly greeting in Indonesian for a returning user named '{user_data.get('nama', 'User')}'. "
-                    "Welcome them back to the creative economy platform and ask how you can help. "
-                    "Strict rules: Max 3 sentences. Output ONLY the raw text message. Do not use markdown, headers, or quotes."
-                )
+                prompt = PromptService.format_welcome_returning(user_data.get('nama', 'User'))
             else:
-                # Skenario: User Baru (New)
-                prompt = (
-                    "Generate a short, friendly welcome message in Indonesian for a new user on a creative economy platform. "
-                    "Ask for their name to get started. "
-                    "Strict rules: Max 3 sentences. Output ONLY the raw text message. Do not use markdown, headers, or quotes."
-                )
+                prompt = PromptService.WELCOME_NEW_USER
             
-            for chunk in llm.stream([HumanMessage(content=prompt)]):
+            for chunk in llm_service.stream(prompt):
                 yield f"data: {json.dumps({'content': chunk.content, 'done': False})}\n\n"
                 await asyncio.sleep(0.01)
             
-            has_nama = user_data and user_data.get("nama") if user_data else False
-            
             interactive_options = None
-            if has_nama:
+            if user_data and user_data.get("nama"):
                 interactive_options = {"type": "fortune_trigger", "text": "🔮 Ramalan Karir"}
             
             final_data = {
@@ -77,17 +45,19 @@ async def start_message(request: StartRequest):
                 "interactive_options": interactive_options
             }
             yield f"data: {json.dumps(final_data)}\n\n"
+            
         except Exception as e:
+            logger.error(f"Start message error: {e}", exc_info=True)
             yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
 
-@app.post("/chat/stream")
+@router.post("/chat/stream", dependencies=[Depends(verify_content_length)])
 async def chat_stream(request: ChatRequest):
     async def generate():
         try:
             session_id = request.session_id or str(uuid.uuid4())
-            user_data = get_user_data(session_id)
+            user_data = session_service.get_user_data(session_id)
             is_returning = user_data is not None
             
             if request.session_state:
@@ -146,15 +116,25 @@ async def chat_stream(request: ChatRequest):
             yield f"data: {json.dumps(final_chunk)}\n\n"
         
         except Exception as e:
+            logger.error(f"Chat stream error: {e}", exc_info=True)
             error_chunk = {"error": str(e), "done": True}
             yield f"data: {json.dumps(error_chunk)}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
 
-@app.post("/reset")
-async def reset(request: StartRequest):
-    delete_user_data(request.session_id)
-    return {
-        "session_id": request.session_id,
-        "message": "Session reset"
-    }
+@router.post("/reset")
+async def reset_session(request: StartRequest):
+    try:
+        if request.session_id:
+            session_service.delete_session(request.session_id)
+        return {
+            "session_id": request.session_id,
+            "message": "Session reset successfully"
+        }
+    except Exception as e:
+        logger.error(f"Reset session error: {e}", exc_info=True)
+        return {
+            "session_id": request.session_id,
+            "message": "Session reset failed",
+            "error": str(e)
+        }
