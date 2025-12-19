@@ -1,8 +1,9 @@
 from langchain_aws import ChatBedrock
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel, Field
 from src.state import AgentState
 from src.config import settings
+from src.redis_client import save_user_data
 
 llm = ChatBedrock(
     model_id=settings.bedrock_model_id,
@@ -10,115 +11,134 @@ llm = ChatBedrock(
     credentials_profile_name=None,
 )
 
+# --- Schema Definition ---
 class ExtractedData(BaseModel):
-    name: str | None = Field(None, description="Nama user jika disebutkan")
-    location: str | None = Field(None, description="Lokasi/kota user jika disebutkan")
-    dob: str | None = Field(None, description="Tanggal lahir user jika disebutkan")
-    job_field: str | None = Field(None, description="Bidang pekerjaan/profesi user jika disebutkan")
-    email: str | None = Field(None, description="Alamat email user jika disebutkan")
+    """Schema untuk ekstraksi data user dari percakapan."""
+    nama: str | None = Field(None, description="Nama lengkap user")
+    kota: str | None = Field(None, description="Kota domisili user")
+    tanggal_lahir: str | None = Field(None, description="Tanggal lahir user")
+    bidang_ekraf: str | None = Field(None, description="Bidang ekonomi kreatif yang ditekuni")
+    jumlah_komunitas_ekraf_disekitar: str | None = Field(None, description="Jumlah angka komunitas")
+    email: str | None = Field(None, description="Alamat email valid")
+    no_telepon: str | None = Field(None, description="Nomor telepon")
+    harapan: str | None = Field(None, description="Harapan atau tujuan user")
 
 structured_llm = llm.with_structured_output(ExtractedData)
 
+# --- Prompt Improvement ---
+# Instruksi dalam Inggris untuk presisi logika, Output diminta Indonesia.
 COLLECTOR_SYSTEM_PROMPT = """
-    Kamu adalah AI Peramal Masa Depan - seorang peramal futuristik yang menggunakan AI untuk memprediksi masa depan karir di industri kreatif.
-    Misi: Kumpulkan 5 informasi untuk meramal masa depan mereka:
-    1. name - Nama lengkap untuk analisis takdir
-    2. location - Kota/lokasi untuk melihat peluang regional
-    3. dob - Tanggal lahir untuk analisis pola karir (format: YYYY-MM-DD atau DD/MM/YYYY)
-    4. job_field - Bidang kreatif saat ini atau yang diminati (desainer, content creator, animator, dll.)
-    5. email - Email untuk mengirim ramalan lengkap
+    You are a friendly and professional creative economy assistant. 
+    Your goal is to collect user information profile step-by-step.
     
-    ATURAN PERAMAL AI:
-    - Tanya HANYA SATU informasi dalam satu waktu
-    - Gunakan bahasa futuristik, menarik, dan persuasif
-    - Hubungkan pertanyaan dengan "meramal masa depan" dan "industri kreatif"
-    - Jaga respons SINGKAT (maksimal 2-3 kalimat)
-    - SELALU gunakan Bahasa Indonesia
+    Current Data Collected: {user_data}
+    Missing Field to Ask: {next_step}
     
-    CONTOH PERTANYAAN BERDASARKAN FIELD:
-    
-    name: "Untuk memulai ramalan masa depanmu di industri kreatif, siapa nama lengkapmu?"
-    
-    location: "Di kota mana kamu berada sekarang? Ini penting untuk melihat peluang industri kreatif di sekitarmu."
-    
-    dob: "Kapan tanggal lahirmu? (format: DD/MM/YYYY atau YYYY-MM-DD) - Ini akan membantu AI menganalisis pola karirmu."
-    
-    job_field: "Bidang kreatif apa yang kamu geluti atau minati? (contoh: desainer grafis, content creator, animator, fotografer, dll.)"
-    
-    email: "Berikan emailmu untuk menerima ramalan lengkap tentang masa depan karirmu di industri kreatif."
-    
-    Field yang sedang ditanyakan: {next_step}
-    
-    Bersikaplah futuristik, menarik, dan profesional.
-    """
+    Instructions:
+    1. Ask the user ONLY for the '{next_step}'.
+    2. Be polite and friendly. Use casual Indonesian (Bahasa Indonesia).
+    3. Do not ask for multiple fields at once.
+    4. Keep the question short (max 4 sentences).
+    5. Output ONLY the raw text message. Do not use markdown, headers, or quotes or bold.
+"""
+
+# Prompt khusus jika semua data sudah lengkap
+COMPLETION_PROMPT = """
+    All user data has been collected: {user_data}.
+    Generate a thank you message in Indonesian, confirming their data is saved, 
+    and tell them they can now start asking questions about creative economy.
+    Strict rules: No markdown.
+"""
+
 
 def chatbot_node(state: AgentState) -> AgentState:
-    user_data = state["user_data"]
-    fields = ["name", "location", "dob", "job_field", "email"]
-    
-    # Extract data from last user message if it's not the first greeting
-    if len(state["messages"]) > 1 and isinstance(state["messages"][-1], HumanMessage):
-        extraction_prompt = f"Ekstrak informasi pribadi dari pesan ini: {state['messages'][-1].content}"
+    user_data = state.get("user_data", {})
+    messages = state.get("messages", [])
+    session_id = state["session_id"]
+
+    mandatory_fields = ["nama", "kota", "tanggal_lahir"]
+    optional_fields = ["bidang_ekraf", "jumlah_komunitas_ekraf_disekitar", "email", "no_telepon"]
+    all_fields = mandatory_fields + optional_fields
+
+    if messages and isinstance(messages[-1], HumanMessage):
+        extraction_prompt = f"Extract user info based on this input: '{messages[-1].content}'. Focus on missing fields."
         extracted = structured_llm.invoke(extraction_prompt)
+
+        for key in all_fields:
+            extracted_val = getattr(extracted, key)
+            if extracted_val and not user_data.get(key):
+                user_data[key] = extracted_val
         
-        # Update user_data with extracted info
-        for key in fields:
-            if getattr(extracted, key) and not user_data.get(key):
-                user_data[key] = getattr(extracted, key)
-    
-    # Determine next missing field
-    next_step = next((f for f in fields if not user_data.get(f)), "complete")
-    
+        save_user_data(session_id, user_data)
+
+    # --- 2. Determine Next Step ---
+    # Cari field pertama yang masih kosong (None/Empty String)
+    next_step = next((f for f in mandatory_fields if not user_data.get(f)), None)
+
+    # Jika mandatory lengkap, cek optional (bisa di-skip jika ingin mandatory saja cukup)
+    # Disini kita asumsi kejar mandatory dulu, lalu optional.
+    if not next_step:
+        next_step = next((f for f in optional_fields if not user_data.get(f)), "complete")
+
     if next_step == "complete":
-        return {**state, "user_data": user_data, "next_step": next_step}
-    
-    # Generate mystical prompt for next field
-    system_prompt = COLLECTOR_SYSTEM_PROMPT.format(next_step=next_step)
-    context = "Yang sudah kamu tahu: " + ", ".join([f"{k}: {v}" for k, v in user_data.items() if v]) if any(user_data.values()) else "Belum ada"
-    
-    last_user_msg = next((msg.content for msg in reversed(state["messages"]) if isinstance(msg, HumanMessage)), "Halo")
-    
-    prompt = f"{system_prompt}\n\n{context}\n\nUser berkata: {last_user_msg}\n\nRespond secara mistis dalam Bahasa Indonesia:"
-    response = llm.invoke([HumanMessage(content=prompt)])
-    
+        final_prompt = COMPLETION_PROMPT.format(user_data=str(user_data))
+        response = llm.invoke([HumanMessage(content=final_prompt)])
+
+        return {
+            "messages": messages + [AIMessage(content=response.content)],
+            "user_data": user_data,
+            "next_step": "complete",
+            "session_id": state["session_id"],
+            "is_returning_user": state["is_returning_user"]
+        }
+
+    # Generate pertanyaan untuk field selanjutnya
+    # Format data agar prompt lebih rapi
+    formatted_data = ", ".join([f"{k}: {v}" for k, v in user_data.items() if v])
+    prompt_text = COLLECTOR_SYSTEM_PROMPT.format(
+        user_data=formatted_data if formatted_data else "None",
+        next_step=next_step
+    )
+
+    # Gunakan SystemMessage untuk instruksi, HumanMessage untuk trigger
+    # Atau gabung di HumanMessage jika model lebih prefer single turn
+    response = llm.invoke([HumanMessage(content=prompt_text)])
+
     return {
-        **state,
-        "messages": state["messages"] + [AIMessage(content=response.content)],
+        "messages": messages + [AIMessage(content=response.content)],
         "user_data": user_data,
-        "next_step": next_step
+        "next_step": next_step,
+        "session_id": state["session_id"],
+        "is_returning_user": state["is_returning_user"]
     }
 
-def fortune_teller_node(state: AgentState) -> AgentState:
-    user_data = state["user_data"]
+
+RAG_SYSTEM_PROMPT = """
+    You are a friendly creative economy assistant for young Indonesian users.
     
-    fortune_prompt = f"""
-        Sebagai AI Peramal Masa Depan, buatkan "Ramalan Karir Kreatif" yang SINGKAT, menginspirasi, dan futuristik untuk:
-        Nama: {user_data['name']}
-        Lokasi: {user_data['location']}
-        Tanggal Lahir: {user_data['dob']}
-        Bidang Kreatif: {user_data['job_field']}
-        
-        Buatlah ramalan masa depan:
-        - Maksimal 3-4 kalimat
-        - Fokus pada peluang dan tren industri kreatif 2-3 tahun ke depan
-        - Spesifik untuk bidang kreatif mereka
-        - Gunakan bahasa futuristik dan data-driven
-        - GUNAKAN BAHASA INDONESIA
-        
-        Kemudian tambahkan teks INI PERSIS di akhir:
-        
-        ---
-        🚀 Untuk mendapatkan akses penuh ke platform pengembangan karir kreatif dan mewujudkan ramalan ini, daftar sekarang:
-        
-        👉 [DAFTAR SEKARANG]({settings.sso_register_url}?email={user_data['email']})
-        
-        Masa depan karirmu menunggu...
-    """
+    User: {user_name}
+    Question: {user_msg}
     
-    response = llm.invoke([HumanMessage(content=fortune_prompt)])
-    
+    Instructions:
+    1. Answer questions about creative economy (ekonomi kreatif) in Indonesian.
+    2. Use casual, friendly tone like talking to a young friend (anak muda).
+    3. Keep it conversational and relatable.
+    4. Output ONLY plain text. NO markdown, NO bold (**), NO headers (#), NO bullet points (-).
+    5. Use simple paragraphs with natural line breaks if needed.
+"""
+
+def rag_node(state: AgentState) -> AgentState:
+    messages = state.get("messages", [])
+    user_msg = messages[-1].content if messages else ""
+    user_name = state["user_data"].get("nama", "User")
+
+    prompt = RAG_SYSTEM_PROMPT.format(user_name=user_name, user_msg=user_msg)
+    response = llm.invoke([HumanMessage(content=prompt)])
+
     return {
-        **state,
-        "messages": state["messages"] + [AIMessage(content=response.content)],
-        "next_step": "complete"
+        "messages": messages + [AIMessage(content=response.content)],
+        "user_data": state["user_data"],
+        "next_step": state["next_step"],
+        "session_id": state["session_id"],
+        "is_returning_user": state["is_returning_user"]
     }

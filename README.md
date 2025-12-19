@@ -113,6 +113,10 @@ Test the graph logic:
 ```bash
 python main.py
 ```
+Test html chatbot:
+```bash
+python -m http.server 8181
+```
 
 ## License
 

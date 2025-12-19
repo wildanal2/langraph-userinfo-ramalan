@@ -1,40 +1,24 @@
 from langgraph.graph import StateGraph, END
-from src.state import AgentState, UserData
-from src.nodes import chatbot_node, fortune_teller_node
+from src.state import AgentState
+from src.nodes import chatbot_node, rag_node
 
-def should_continue(state: AgentState) -> str:
-    """Determine if we should continue collecting or generate fortune"""
-    user_data = state["user_data"]
-    required_fields = ["name", "location", "dob", "job_field", "email"]
-    
-    if all(user_data.get(field) for field in required_fields):
-        return "fortune"
-    return "collect"
+def route_entry(state: AgentState) -> str:
+    return "rag" if state["is_returning_user"] else "chatbot"
+
+def route_chatbot(state: AgentState) -> str:
+    return "chatbot" if state["next_step"] != "complete" else END
 
 def create_graph():
     workflow = StateGraph(AgentState)
     
-    # Add nodes
     workflow.add_node("chatbot", chatbot_node)
-    workflow.add_node("fortune", fortune_teller_node)
+    workflow.add_node("rag", rag_node)
     
-    # Set entry point
-    workflow.set_entry_point("chatbot")
+    workflow.set_conditional_entry_point(route_entry, {"chatbot": "chatbot", "rag": "rag"})
     
-    # Add conditional edges
-    workflow.add_conditional_edges(
-        "chatbot",
-        should_continue,
-        {
-            "collect": END,
-            "fortune": "fortune"
-        }
-    )
-    
-    # Fortune node leads to END
-    workflow.add_edge("fortune", END)
+    workflow.add_conditional_edges("chatbot", route_chatbot, {"chatbot": END, END: END})
+    workflow.add_edge("rag", END)
     
     return workflow.compile()
 
-# Create the compiled graph
 graph = create_graph()
