@@ -3,6 +3,7 @@ from src.models.state import AgentState
 from src.services import LLMService, SessionService, PromptService
 from src.core.config import settings
 from src.core.logging import get_logger
+from src.core.security import validate_email, validate_phone, validate_date
 
 logger = get_logger(__name__)
 
@@ -27,16 +28,47 @@ def chatbot_node(state: AgentState) -> AgentState:
     optional_fields = ["bidang_ekraf", "jumlah_komunitas_ekraf_disekitar", "email", "no_telepon"]
     all_fields = mandatory_fields + optional_fields
 
+    validation_failed = None
+    
     if messages and isinstance(messages[-1], HumanMessage):
-        extraction_prompt = f"Extract user info based on this input: '{messages[-1].content}'. Focus on missing fields."
+        user_input = messages[-1].content
+        extraction_prompt = f"Extract user info based on this input: '{user_input}'. Focus on missing fields."
         extracted = llm_service.extract_data(extraction_prompt)
 
         for key in all_fields:
             extracted_val = getattr(extracted, key)
             if extracted_val and not user_data.get(key):
+                # Validate specific fields
+                if key == "email" and not validate_email(extracted_val):
+                    validation_failed = (key, user_input)
+                    break
+                if key == "no_telepon" and not validate_phone(extracted_val):
+                    validation_failed = (key, user_input)
+                    break
+                if key == "tanggal_lahir" and not validate_date(extracted_val):
+                    validation_failed = (key, user_input)
+                    break
                 user_data[key] = extracted_val
         
         session_service.save_user_data(session_id, user_data)
+    
+    # Handle validation error with friendly message
+    if validation_failed:
+        field_name, invalid_input = validation_failed
+        user_name = user_data.get("nama", "")
+        error_prompt = PromptService.format_validation_error(user_name, invalid_input, field_name)
+        response_content = llm_service.invoke(error_prompt)
+        
+        return {
+            "messages": messages + [AIMessage(content=response_content)],
+            "user_data": user_data,
+            "next_step": field_name,
+            "session_id": session_id,
+            "is_returning_user": state["is_returning_user"],
+            "intent": state.get("intent", "answering"),
+            "fortune_full": state.get("fortune_full", ""),
+            "interactive_options": None
+        }
 
     next_step = next((f for f in mandatory_fields if not user_data.get(f)), None)
     if not next_step:

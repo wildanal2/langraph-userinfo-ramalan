@@ -1,9 +1,10 @@
-# Creative Career Fortune Teller 🔮
+# Krea.ai - Temukan Takdir Kreatifmu 🔮
 
-Production-ready chatbot untuk mengumpulkan data user melalui percakapan yang engaging menggunakan LangGraph dan AWS Bedrock Nova.
+Production-ready chatbot untuk mengumpulkan data user melalui percakapan yang engaging menggunakan LangGraph dan AWS Bedrock Nova. Dilengkapi dengan embeddable widget yang dapat diintegrasikan ke website manapun.
 
 ## Features
 
+- 🎨 **Embeddable Chat Widget** - Mudah diintegrasikan ke website
 - 🎭 Persona menarik untuk data collection
 - 🧠 LangGraph state management
 - 🤖 AWS Bedrock Nova models
@@ -23,7 +24,8 @@ src/
 ├── api/                    # API layer
 │   ├── routes/            # API endpoints
 │   │   ├── chat.py        # Chat endpoints
-│   │   └── health.py      # Health checks
+│   │   ├── health.py      # Health checks
+│   │   └── widget.py      # Widget routes
 │   ├── dependencies.py    # FastAPI dependencies
 │   ├── middleware.py      # Custom middleware
 │   └── main.py           # App factory
@@ -42,9 +44,14 @@ src/
 ├── graph/                # LangGraph workflow
 │   ├── nodes.py          # Graph nodes
 │   └── workflow.py       # Graph definition
-└── infrastructure/       # External services
-    ├── redis.py          # Redis client
-    └── aws.py            # AWS Bedrock client
+├── infrastructure/       # External services
+│   ├── redis.py          # Redis client
+│   └── aws.py            # AWS Bedrock client
+└── static/               # Static files
+    └── widget/           # Chat widget
+        ├── css/          # Widget styles
+        ├── js/           # Widget scripts
+        └── images/       # Widget assets
 ```
 
 ## Quick Setup
@@ -66,8 +73,9 @@ cp .env.example .env
 # 4. Run Server FastAPI
 make run-dev
 
-# 5. Run Html Testing
-python -m http.server 8181
+# 5. Test Widget (pilih salah satu)
+open http://localhost:8000/widget/demo      # Demo page
+open http://localhost:8000/widget/embed     # Embed code
 ```
 
 **Environment variables penting:**
@@ -87,10 +95,48 @@ make run          # Production
 make run-dev      # Development (auto-reload)
 make test         # Run tests
 make docker-up    # Docker deployment
-python main.py    # CLI testing
+```
+
+### Widget Integration
+
+**Demo & Testing:**
+```bash
+open http://localhost:8000/widget/demo   # Demo page
+open http://localhost:8000/widget/embed  # Embed code
+```
+
+**Embed di website Anda:**
+```html
+<script>
+  window.KREA_API_URL = 'http://localhost:8000';
+</script>
+<link rel="stylesheet" href="http://localhost:8000/static/widget/css/widget.css">
+<script src="http://localhost:8000/static/widget/js/widget.js"></script>
+```
+
+**Production:**
+```html
+<script>
+  window.KREA_API_URL = 'https://api.yourdomain.com';
+</script>
+<link rel="stylesheet" href="https://api.yourdomain.com/static/widget/css/widget.css">
+<script src="https://api.yourdomain.com/static/widget/js/widget.js"></script>
 ```
 
 ## API Endpoints
+
+### Chat API
+- **POST /start-message** - Initialize chat session (SSE stream)
+- **POST /chat/stream** - Send message & get response (SSE stream)
+- **POST /reset** - Reset chat session
+
+### Widget
+- **GET /widget/demo** - Demo page dengan widget
+- **GET /widget/embed** - Embed code & dokumentasi
+- **GET /static/widget/*** - Widget assets (CSS, JS, images)
+
+### Health
+- **GET /health** - Health check endpoint
 
 ### Health Check
 ```bash
@@ -204,21 +250,31 @@ data: {
 
 ## Production Deployment
 
+### Docker (Recommended)
 ```bash
-# Docker (Recommended)
 docker-compose up -d
+```
 
-# Manual
+### Manual
+```bash
 ENVIRONMENT=production python run.py
 ```
 
+### Widget Production Setup
+1. Deploy FastAPI backend ke production
+2. Update `KREA_API_URL` di embed code dengan domain production
+3. Embed widget script di website target
+4. (Optional) Serve static files via CDN untuk performa lebih baik
+
 **Production checklist:**
-- Set `ENVIRONMENT=production`
-- Configure `ALLOWED_ORIGINS` dengan domain spesifik
-- Set `LOG_LEVEL=WARNING`
-- Gunakan production Redis
-- Enable HTTPS
-- Monitor `/health` endpoint
+- ✅ Set `ENVIRONMENT=production`
+- ✅ Configure `ALLOWED_ORIGINS` dengan domain spesifik
+- ✅ Set `LOG_LEVEL=WARNING`
+- ✅ Gunakan production Redis
+- ✅ Enable HTTPS
+- ✅ Monitor `/health` endpoint
+- ✅ Update widget `KREA_API_URL` ke production domain
+- ✅ Test widget di staging environment
 
 **Security features:**
 - ✅ Input validation & sanitization
@@ -244,7 +300,8 @@ src/
 ├── services/         # Business logic
 ├── models/           # Data models
 ├── graph/            # LangGraph workflow
-└── infrastructure/   # External services
+├── infrastructure/   # External services
+└── static/           # Widget assets
 ```
 
 **Adding features:**
@@ -268,10 +325,16 @@ make quality   # Run all checks
 | AWS credentials error | `aws configure` atau check `.env` |
 | Import errors | `make clean && make install` |
 | Port in use | `lsof -i :8000` dan kill process |
+| Widget tidak muncul | Check browser console, pastikan API URL benar |
+| CORS error di widget | Update `ALLOWED_ORIGINS` di config |
 
 ## Documentation
 
 - **[QUICKSTART.md](QUICKSTART.md)** - Setup cepat 5 menit
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture overview
+- **[docs/WIDGET_QUICKSTART.md](docs/WIDGET_QUICKSTART.md)** - Widget quick start
+- **[docs/WIDGET.md](docs/WIDGET.md)** - Widget documentation
+- **[docs/WIDGET_STRUCTURE.md](docs/WIDGET_STRUCTURE.md)** - Widget structure
 - **[MIGRATION.md](MIGRATION.md)** - Panduan migrasi dari struktur lama
 - **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Checklist production
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history
