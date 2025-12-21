@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str
     aws_region: str = "us-east-1"
     bedrock_model_id: str = "amazon.nova-lite-v1:0"
-    
+    bedrock_embedding_model_id: str
     # Application Configuration
     app_name: str = "Creative Fortune Teller API"
     app_version: str = "1.0.0"
@@ -34,6 +34,18 @@ class Settings(BaseSettings):
     langwatch_api_key: str = ""
     langwatch_endpoint: str = "https://app.langwatch.ai"
     langwatch_enabled: bool = True
+    
+    # LangWatch Configuration
+    langwatch_api_key: str = ""
+    langwatch_endpoint: str = "https://app.langwatch.ai"
+    langwatch_enabled: bool = True
+    
+    # RAG
+    chroma_presist_dir : str
+    active_collection_file : str
+    max_results : int
+    vector_search_k : int
+    score_threshold : float
     
     class Config:
         env_file = ".env"

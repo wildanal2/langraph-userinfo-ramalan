@@ -1,0 +1,10 @@
+{
+  "collection_name": "",
+  "updated_at": "",
+  "chunking_config": {
+    "parent_chunk_size": null,
+    "parent_chunk_overlap": null,
+    "child_chunk_size": null,
+    "child_chunk_overlap": null
+  }
+}

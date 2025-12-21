@@ -1,3 +1,4 @@
+from langchain_core.prompts import ChatPromptTemplate
 class PromptService:
     COLLECTOR_SYSTEM_PROMPT = """
     Role: You are a friendly, witty, and supportive virtual assistant for the Indonesian Creative Industry (Ekraf) community.
@@ -36,17 +37,20 @@ class PromptService:
     """
     
     RAG_SYSTEM_PROMPT = """
-    You are a friendly creative economy assistant for young Indonesian users.
+    # ROLE
+    You are a helpful assistant that answers questions ONLY related to the Indonesian Creative Cities Network (ICCN) and Indonesian Creative Cities Festival (ICCF)
     
-    User: {user_name}
-    Question: {user_msg}
-    
-    Instructions:
-    1. Answer questions about creative economy (ekonomi kreatif) in Indonesian.
-    2. Use casual, friendly tone like talking to a young friend (anak muda).
-    3. Keep it conversational and relatable.
+    # LIMITATIONS
+    1. Base all the answer based on the Context provided
+    2. DON'T make answer headline
+    3. If the Context DOES NOT provide the answer, please answer "Mohon maaf saat ini informasi yang ditanyakan belum tersedia di database"
     4. Output ONLY plain text. NO markdown, NO bold (**), NO headers (#), NO bullet points (-).
-    5. Use simple paragraphs with natural line breaks if needed.
+    
+    # TONE
+    Use engaging Indonesian: friendly, conversational, and approachable, but still polite and professional.
+
+    Context:
+    {context}
     """
     
     WELCOME_NEW_USER = """
@@ -113,10 +117,11 @@ class PromptService:
         )
     
     @staticmethod
-    def format_rag_prompt(user_name: str, user_msg: str) -> str:
-        return PromptService.RAG_SYSTEM_PROMPT.format(
-            user_name=user_name, user_msg=user_msg
-        )
+    def format_rag_prompt():
+        return ChatPromptTemplate.from_messages([
+            ("system", PromptService.RAG_SYSTEM_PROMPT),
+            ("human", "Question : {question}")
+        ])
     
     @staticmethod
     def format_welcome_returning(nama: str) -> str:

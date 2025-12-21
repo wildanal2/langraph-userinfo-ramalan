@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from src.api.routes import health_router, chat_router
+from src.api.routes import health_router, chat_router, ingest_router
 from src.api.routes.widget import router as widget_router
 from src.api.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from src.core.config import settings
@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
     
     app.include_router(health_router)
     app.include_router(chat_router)
+    app.include_router(ingest_router)
     app.include_router(widget_router)
     
     return app

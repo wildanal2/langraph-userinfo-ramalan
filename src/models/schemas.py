@@ -13,6 +13,14 @@ class ChatRequest(BaseModel):
     def sanitize_message(cls, v):
         return v.strip()
 
+class IngestRequest(BaseModel):
+    s3_bucket: str
+    s3_prefix: str
+    parent_chunk_size: int = 1000
+    parent_chunk_overlap: int = 100
+    child_chunk_size: int = 350
+    child_chunk_overlap: int = 50
+
 class ChatResponse(BaseModel):
     content: str
     done: bool
@@ -26,3 +34,8 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     dependencies: dict
+
+class IngestStatusResponse(BaseModel):
+    status: str
+    message: str
+    config: dict
