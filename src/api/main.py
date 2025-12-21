@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes import health_router, chat_router
+from src.api.routes import health_router, chat_router, ingest_router
 from src.api.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from src.core.config import settings
 from src.core.logging import setup_logging
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
     
     app.include_router(health_router)
     app.include_router(chat_router)
+    app.include_router(ingest_router)
     
     return app
 
