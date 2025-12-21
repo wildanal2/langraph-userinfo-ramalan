@@ -7,9 +7,11 @@ from src.api.routes.widget import router as widget_router
 from src.api.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from src.core.config import settings
 from src.core.logging import setup_logging
+from src.infrastructure.langwatch import init_langwatch
 
 def create_app() -> FastAPI:
     setup_logging(settings.log_level)
+    init_langwatch()
     
     app = FastAPI(
         title=settings.app_name,

@@ -1,7 +1,9 @@
 from typing import Any
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+import langwatch
 from src.infrastructure.aws import get_bedrock_client
 from src.core.logging import get_logger
 from src.core.exceptions import LLMServiceError
@@ -34,7 +36,12 @@ class LLMService:
     )
     def invoke(self, prompt: str) -> str:
         try:
-            response = self.llm.invoke([HumanMessage(content=prompt)])
+            config = None
+            if settings.langwatch_enabled:
+                config = RunnableConfig(
+                    callbacks=[langwatch.get_current_trace().get_langchain_callback()]
+                )
+            response = self.llm.invoke([HumanMessage(content=prompt)], config=config)
             return response.content if isinstance(response.content, str) else ""
         except Exception as e:
             logger.error(f"LLM invocation failed: {e}")
@@ -46,7 +53,12 @@ class LLMService:
     )
     def extract_data(self, prompt: str) -> ExtractedData:
         try:
-            return self.structured_llm.invoke(prompt)
+            config = None
+            if settings.langwatch_enabled:
+                config = RunnableConfig(
+                    callbacks=[langwatch.get_current_trace().get_langchain_callback()]
+                )
+            return self.structured_llm.invoke(prompt, config=config)
         except Exception as e:
             logger.error(f"Data extraction failed: {e}")
             raise LLMServiceError(f"Data extraction failed: {e}")
@@ -57,7 +69,12 @@ class LLMService:
     )
     def classify_intent(self, prompt: str) -> str:
         try:
-            result = self.intent_llm.invoke(prompt)
+            config = None
+            if settings.langwatch_enabled:
+                config = RunnableConfig(
+                    callbacks=[langwatch.get_current_trace().get_langchain_callback()]
+                )
+            result = self.intent_llm.invoke(prompt, config=config)
             return result.intent
         except Exception as e:
             logger.error(f"Intent classification failed: {e}")

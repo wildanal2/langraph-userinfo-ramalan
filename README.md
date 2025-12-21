@@ -16,6 +16,7 @@ Production-ready chatbot untuk mengumpulkan data user melalui percakapan yang en
 - 🔁 Automatic retry logic
 - 🏥 Health checks
 - 🧪 Test structure
+- 🔍 **LangWatch Tracing** - Full observability & monitoring
 
 ## Architecture
 
@@ -331,6 +332,10 @@ make quality   # Run all checks
 ## Documentation
 
 - **[QUICKSTART.md](QUICKSTART.md)** - Setup cepat 5 menit
+- **[LANGWATCH_QUICKSTART.md](docs/LANGWATCH_QUICKSTART.md)** - LangWatch setup 5 menit
+- **[LANGWATCH_INTEGRATION.md](LANGWATCH_INTEGRATION.md)** - LangWatch integration summary
+- **[docs/LANGWATCH.md](docs/LANGWATCH.md)** - LangWatch complete guide
+- **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment guide
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture overview
 - **[docs/WIDGET_QUICKSTART.md](docs/WIDGET_QUICKSTART.md)** - Widget quick start
 - **[docs/WIDGET.md](docs/WIDGET.md)** - Widget documentation

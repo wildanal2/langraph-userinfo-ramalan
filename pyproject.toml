@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "redis>=5.0.0",
     "tenacity>=8.2.0",
+    "langwatch>=0.1.0",
 ]
 
 [build-system]
