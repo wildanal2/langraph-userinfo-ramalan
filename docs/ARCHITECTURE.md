@@ -9,7 +9,8 @@ src/
 ├── api/                    # API Layer (HTTP Interface)
 │   ├── routes/            # Endpoint definitions
 │   │   ├── chat.py        # Chat endpoints (start, stream, reset)
-│   │   └── health.py      # Health check endpoint
+│   │   ├── health.py      # Health check endpoint
+│   │   └── widget.py      # Widget routes (demo, embed)
 │   ├── dependencies.py    # FastAPI dependency injection
 │   ├── middleware.py      # Request/response middleware
 │   └── main.py           # FastAPI app factory
@@ -33,18 +34,25 @@ src/
 │   ├── nodes.py          # Graph nodes (chatbot, rag, classifier)
 │   └── workflow.py       # Graph definition & routing
 │
-└── infrastructure/       # External Services
-    ├── redis.py          # Redis client (singleton)
-    └── aws.py            # AWS Bedrock client (singleton)
+├── infrastructure/       # External Services
+│   ├── redis.py          # Redis client (singleton)
+│   └── aws.py            # AWS Bedrock client (singleton)
+│
+└── static/               # Static Files
+    └── widget/           # Chat Widget
+        ├── css/          # Widget styles
+        ├── js/           # Widget scripts
+        └── images/       # Widget assets
 ```
 
 ## Design Principles
 
 ### 1. Separation of Concerns
-- **API Layer**: HTTP handling only
+- **API Layer**: HTTP handling + static files serving
 - **Services**: Business logic
 - **Models**: Data structures
 - **Infrastructure**: External integrations
+- **Static**: Frontend widget assets
 
 ### 2. Dependency Injection
 - Services injected via FastAPI dependencies
@@ -71,12 +79,13 @@ src/
 
 ## Data Flow
 
+### Chat API Flow
 ```
-Client Request
+Client Request (Web/Widget)
     ↓
 API Layer (routes/chat.py)
     ↓
-Middleware (logging, CORS)
+Middleware (logging, CORS, error handling)
     ↓
 Dependencies (services injection)
     ↓
@@ -89,7 +98,39 @@ Infrastructure (Redis, Bedrock)
 Response (SSE stream)
 ```
 
+### Widget Integration Flow
+```
+User Website
+    ↓
+Widget Script Load (/static/widget/js/widget.js)
+    ↓
+Widget CSS Load (/static/widget/css/widget.css)
+    ↓
+Widget Initialize (KreaChatWidget class)
+    ↓
+User Interaction (click bubble)
+    ↓
+API Calls (POST /start-message, POST /chat/stream)
+    ↓
+SSE Streaming Response
+    ↓
+Widget UI Update (real-time)
+```
+
 ## Key Components
+
+### Embeddable Widget
+- **Auto-initialize**: Loads on page ready
+- **Session Persistence**: localStorage for session_id
+- **SSE Streaming**: Real-time response rendering
+- **Interactive UI**: Quick reply, fortune trigger, SSO buttons
+- **Responsive Design**: Mobile & desktop optimized
+- **Customizable**: Logo, colors, API URL configurable
+
+### Widget Endpoints
+- **GET /widget/demo**: Demo page with integrated widget
+- **GET /widget/embed**: Embed code & documentation
+- **GET /static/widget/***: Static assets (CSS, JS, images)
 
 ### LangGraph Workflow
 - **Entry Point**: Route based on user type (new/returning)
@@ -116,6 +157,21 @@ Response (SSE stream)
 - HTML sanitization (bleach)
 - SQL injection prevention
 - XSS protection
+
+## API Endpoints
+
+### Chat Endpoints
+- **POST /start-message**: Initialize chat session (SSE)
+- **POST /chat/stream**: Send message & stream response (SSE)
+- **POST /reset**: Reset chat session
+
+### Widget Endpoints
+- **GET /widget/demo**: Demo page
+- **GET /widget/embed**: Embed documentation
+
+### Health & Static
+- **GET /health**: Health check
+- **GET /static/widget/***: Widget assets
 
 ## Configuration
 
@@ -152,17 +208,25 @@ LOG_LEVEL=INFO|WARNING|ERROR
 ### Development
 ```bash
 make run-dev
+# Widget demo: http://localhost:8000/widget/demo
 ```
 
 ### Production
 ```bash
 ENVIRONMENT=production python run.py
+# Update widget API URL in embed code
 ```
 
 ### Docker
 ```bash
 docker-compose up -d
 ```
+
+### Widget Deployment
+1. Deploy FastAPI backend
+2. Update `KREA_API_URL` in widget embed code
+3. Embed widget script in target website
+4. Optional: Serve static files via CDN
 
 ## Testing
 
@@ -243,8 +307,19 @@ Response:
 - [ ] Database integration
 - [ ] Message queue (async processing)
 - [ ] Admin dashboard
+- [ ] Widget analytics & tracking
+- [ ] Multi-language widget support
+- [ ] Widget theme customization API
+
+## Related Documentation
+
+- **[WIDGET_QUICKSTART.md](WIDGET_QUICKSTART.md)** - Widget setup guide
+- **[WIDGET.md](WIDGET.md)** - Widget full documentation
+- **[WIDGET_STRUCTURE.md](WIDGET_STRUCTURE.md)** - Widget structure details
+- **[../README.md](../README.md)** - Main project README
 
 ---
 
-**Version**: 1.0.0  
-**Status**: Production Ready
+**Version**: 1.1.0  
+**Status**: Production Ready  
+**Last Updated**: Widget Integration Added

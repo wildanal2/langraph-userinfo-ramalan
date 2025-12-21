@@ -21,6 +21,7 @@ dependencies = [
     "langchain-text-splitters==0.3.11",
     "langchain-redis==0.2.4",
     "pymupdf==1.26.4",
+    "langwatch>=0.1.0",
 ]
 
 [build-system]

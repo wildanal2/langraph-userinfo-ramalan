@@ -30,12 +30,23 @@ class Settings(BaseSettings):
     llm_timeout: int = 30
     llm_max_retries: int = 3
     
+    # LangWatch Configuration
+    langwatch_api_key: str = ""
+    langwatch_endpoint: str = "https://app.langwatch.ai"
+    langwatch_enabled: bool = True
+    
+    # LangWatch Configuration
+    langwatch_api_key: str = ""
+    langwatch_endpoint: str = "https://app.langwatch.ai"
+    langwatch_enabled: bool = True
+    
     # RAG
     chroma_presist_dir : str
     active_collection_file : str
     max_results : int
     vector_search_k : int
     score_threshold : float
+    
     class Config:
         env_file = ".env"
 

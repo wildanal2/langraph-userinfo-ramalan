@@ -1,7 +1,9 @@
 from typing import Any
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+import langwatch
 from src.infrastructure.aws import get_bedrock_client
 from src.core.logging import get_logger
 from src.core.exceptions import LLMServiceError
@@ -12,7 +14,7 @@ logger = get_logger(__name__)
 class ExtractedData(BaseModel):
     nama: str | None = Field(None, description="Nama lengkap user")
     kota: str | None = Field(None, description="Kota domisili user")
-    tanggal_lahir: str | None = Field(None, description="Tanggal lahir user")
+    tanggal_lahir: str | None = Field(None, description="Tanggal lahir user dalam format DD-MM-YYYY. Ekstrak dan konversi dari format apapun (contoh: '12 Desember 2003' menjadi '12-12-2003', '12.10.2002' menjadi '12-10-2002')")
     bidang_ekraf: str | None = Field(None, description="Bidang ekonomi kreatif yang ditekuni")
     jumlah_komunitas_ekraf_disekitar: str | None = Field(None, description="Jumlah angka komunitas")
     email: str | None = Field(None, description="Alamat email valid")
@@ -34,7 +36,12 @@ class LLMService:
     )
     def invoke(self, prompt: str) -> str:
         try:
-            response = self.llm.invoke([HumanMessage(content=prompt)])
+            config = None
+            if settings.langwatch_enabled:
+                config = RunnableConfig(
+                    callbacks=[langwatch.get_current_trace().get_langchain_callback()]
+                )
+            response = self.llm.invoke([HumanMessage(content=prompt)], config=config)
             return response.content if isinstance(response.content, str) else ""
         except Exception as e:
             logger.error(f"LLM invocation failed: {e}")
@@ -46,7 +53,12 @@ class LLMService:
     )
     def extract_data(self, prompt: str) -> ExtractedData:
         try:
-            return self.structured_llm.invoke(prompt)
+            config = None
+            if settings.langwatch_enabled:
+                config = RunnableConfig(
+                    callbacks=[langwatch.get_current_trace().get_langchain_callback()]
+                )
+            return self.structured_llm.invoke(prompt, config=config)
         except Exception as e:
             logger.error(f"Data extraction failed: {e}")
             raise LLMServiceError(f"Data extraction failed: {e}")
@@ -57,7 +69,12 @@ class LLMService:
     )
     def classify_intent(self, prompt: str) -> str:
         try:
-            result = self.intent_llm.invoke(prompt)
+            config = None
+            if settings.langwatch_enabled:
+                config = RunnableConfig(
+                    callbacks=[langwatch.get_current_trace().get_langchain_callback()]
+                )
+            result = self.intent_llm.invoke(prompt, config=config)
             return result.intent
         except Exception as e:
             logger.error(f"Intent classification failed: {e}")

@@ -1,12 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from src.api.routes import health_router, chat_router, ingest_router
+from src.api.routes.widget import router as widget_router
 from src.api.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from src.core.config import settings
 from src.core.logging import setup_logging
+from src.infrastructure.langwatch import init_langwatch
 
 def create_app() -> FastAPI:
     setup_logging(settings.log_level)
+    init_langwatch()
     
     app = FastAPI(
         title=settings.app_name,
@@ -26,9 +31,14 @@ def create_app() -> FastAPI:
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(ErrorHandlingMiddleware)
     
+    # Mount static files
+    static_path = Path(__file__).parent.parent / "static"
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+    
     app.include_router(health_router)
     app.include_router(chat_router)
     app.include_router(ingest_router)
+    app.include_router(widget_router)
     
     return app
 
