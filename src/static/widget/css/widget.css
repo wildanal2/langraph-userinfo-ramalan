@@ -4,7 +4,7 @@
     right: 24px;
     background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);
     border-radius: 50%;
-    padding: 16px;
+    padding: 8px;
     box-shadow: 0 10px 40px rgba(147, 51, 234, 0.4);
     cursor: pointer;
     z-index: 9998;
@@ -94,30 +94,65 @@
 
 .krea-message {
     display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    position: relative;
 }
 
 .krea-message.user {
     justify-content: flex-end;
 }
 
-.krea-message-bubble {
+.krea-bot-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    padding: 3px;
+    flex-shrink: 0;
+}
+
+.krea-message-content {
+    display: flex;
+    flex-direction: column;
     max-width: 75%;
-    padding: 12px 16px;
-    border-radius: 16px;
-    font-size: 14px;
-    line-height: 1.5;
+    position: relative;
+}
+
+.krea-message-bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.krea-message-time {
+    font-size: 9px;
+    color: #9ca3af;
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
+.krea-message:hover .krea-message-time {
+    opacity: 1;
 }
 
 .krea-message.bot .krea-message-bubble {
     background: #9333ea;
     color: white;
-    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.krea-message.user .krea-message-content {
+    align-items: flex-end;
 }
 
 .krea-message.user .krea-message-bubble {
     background: #4f46e5;
     color: white;
-    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
 }
 
 .krea-chat-input-area {
@@ -135,8 +170,8 @@
     flex: 1;
     border: 1px solid #d1d5db;
     border-radius: 24px;
-    padding: 10px 16px;
-    font-size: 14px;
+    padding: 8px 14px;
+    font-size: 13px;
     outline: none;
 }
 
@@ -150,8 +185,8 @@
     color: white;
     border: none;
     border-radius: 24px;
-    padding: 10px 20px;
-    font-size: 14px;
+    padding: 8px 16px;
+    font-size: 13px;
     cursor: pointer;
     font-weight: 500;
 }

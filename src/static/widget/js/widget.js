@@ -29,9 +29,7 @@
         createWidget() {
             const widgetHTML = `
                 <div id="kreaChatBubble" class="krea-chat-bubble">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: white;">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-                    </svg>
+                    <img src="/static/widget/images/krea-ai.png" alt="Krea.ai" style="width: 52px; height: 52px; display: block;">
                 </div>
                 <div id="kreaChatWidget" class="krea-chat-widget">
                     <div class="krea-chat-header">
@@ -141,11 +139,28 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `krea-message ${isUser ? 'user' : 'bot'}`;
             
+            if (!isUser) {
+                const avatar = document.createElement('img');
+                avatar.src = this.logoUrl;
+                avatar.className = 'krea-bot-avatar';
+                messageDiv.appendChild(avatar);
+            }
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'krea-message-content';
+            
             const bubble = document.createElement('div');
             bubble.className = 'krea-message-bubble';
             bubble.innerHTML = content;
             
-            messageDiv.appendChild(bubble);
+            const time = document.createElement('div');
+            time.className = 'krea-message-time';
+            time.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            
+            contentDiv.appendChild(bubble);
+            contentDiv.appendChild(time);
+            
+            messageDiv.appendChild(contentDiv);
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             
@@ -157,6 +172,8 @@
             const message = input.value.trim();
             
             if (!message) return;
+            
+            this.disableAllInteractiveButtons();
             
             this.addMessage(message, true);
             input.value = '';
@@ -244,6 +261,18 @@
 
         parseBold(text) {
             return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        }
+
+        disableAllInteractiveButtons() {
+            const allOptions = document.querySelectorAll('.krea-options');
+            allOptions.forEach(optionDiv => {
+                const buttons = optionDiv.querySelectorAll('button');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                });
+            });
         }
 
         selectOption(value) {

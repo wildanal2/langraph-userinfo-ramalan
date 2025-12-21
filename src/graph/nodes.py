@@ -38,14 +38,11 @@ def chatbot_node(state: AgentState) -> AgentState:
         for key in all_fields:
             extracted_val = getattr(extracted, key)
             if extracted_val and not user_data.get(key):
-                # Validate specific fields
+                # Validate specific fields (except tanggal_lahir - let LLM handle it)
                 if key == "email" and not validate_email(extracted_val):
                     validation_failed = (key, user_input)
                     break
                 if key == "no_telepon" and not validate_phone(extracted_val):
-                    validation_failed = (key, user_input)
-                    break
-                if key == "tanggal_lahir" and not validate_date(extracted_val):
                     validation_failed = (key, user_input)
                     break
                 user_data[key] = extracted_val
