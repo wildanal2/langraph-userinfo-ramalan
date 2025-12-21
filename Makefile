@@ -7,16 +7,16 @@ dev:
 	uv pip install -e ".[dev]"
 
 test:
-	pytest tests/ -v
+	uv run pytest tests/ -v
 
 test-cov:
-	pytest tests/ --cov=src --cov-report=html --cov-report=term
+	uv run pytest tests/ --cov=src --cov-report=html --cov-report=term
 
 run:
-	python run.py
+	uv run python run.py
 
 run-dev:
-	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+	uv run uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
