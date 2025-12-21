@@ -1,6 +1,7 @@
 from langchain_core.messages import HumanMessage, AIMessage
 from src.models.state import AgentState
 from src.services import LLMService, SessionService, PromptService
+from src.rag.retrieval.rag_pipeline import rag_pipeline
 from src.core.config import settings
 from src.core.logging import get_logger
 
@@ -8,6 +9,8 @@ logger = get_logger(__name__)
 
 llm_service = LLMService()
 session_service = SessionService()
+def get_rag_chat():
+    return rag_pipeline.chat()
 
 BIDANG_EKRAF_OPTIONS = [
     "Aplikasi", "Arsitektur", "Desain Interior", "Desain Komunikasi Visual (DKV)",
@@ -121,10 +124,8 @@ def classifier_node(state: AgentState) -> AgentState:
 def rag_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
-    user_name = state["user_data"].get("nama", "User")
-
-    prompt = PromptService.format_rag_prompt(user_name, user_msg)
-    response_content = llm_service.invoke(prompt)
+    rag_chat = get_rag_chat()
+    response_content = rag_chat.invoke({"question": user_msg})
 
     return {
         "messages": messages + [AIMessage(content=response_content)],
