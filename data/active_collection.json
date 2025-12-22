@@ -1,10 +1,10 @@
 {
-  "collection_name": "",
-  "updated_at": "",
+  "collection_name": "rag_v_20251222_083721",
+  "updated_at": "2025-12-22T08:37:43.196130",
   "chunking_config": {
-    "parent_chunk_size": null,
-    "parent_chunk_overlap": null,
-    "child_chunk_size": null,
-    "child_chunk_overlap": null
+    "parent_chunk_size": 1000,
+    "parent_chunk_overlap": 100,
+    "child_chunk_size": 350,
+    "child_chunk_overlap": 50
   }
 }
