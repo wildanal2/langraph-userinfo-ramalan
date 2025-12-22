@@ -7,7 +7,8 @@ class Settings(BaseSettings):
     # AWS Configuration
     aws_access_key_id: str
     aws_secret_access_key: str
-    aws_region: str = "us-east-1"
+    aws_region: str = "ap-southeast-3"  # Default region for LLM (Jakarta)
+    aws_embedding_region: str = "ap-northeast-1"  # Region for embeddings
     bedrock_model_id: str = "amazon.nova-lite-v1:0"
     bedrock_embedding_model_id: str
     # Application Configuration

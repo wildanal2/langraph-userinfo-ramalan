@@ -15,8 +15,8 @@ Production-ready chatbot untuk mengumpulkan data user melalui percakapan yang en
 - 📝 Logging & error handling
 - 🔁 Automatic retry logic
 - 🏥 Health checks
-- 🧪 Test structure
 - 🔍 **LangWatch Tracing** - Full observability & monitoring
+- 🔎 **RAG (Retrieval-Augmented Generation)** - Knowledge base integration
 
 ## Architecture
 
@@ -47,7 +47,13 @@ src/
 │   └── workflow.py       # Graph definition
 ├── infrastructure/       # External services
 │   ├── redis.py          # Redis client
-│   └── aws.py            # AWS Bedrock client
+│   ├── aws.py            # AWS Bedrock client
+│   └── langwatch.py      # LangWatch tracing
+├── rag/                  # RAG system
+│   ├── db/               # Vector & document stores
+│   ├── ingestion/        # Document ingestion
+│   ├── retrieval/        # Retrieval logic
+│   └── utils/            # RAG utilities
 └── static/               # Static files
     └── widget/           # Chat widget
         ├── css/          # Widget styles
@@ -83,10 +89,14 @@ open http://localhost:8000/widget/embed     # Embed code
 ```env
 AWS_ACCESS_KEY_ID=your_key
 AWS_SECRET_ACCESS_KEY=your_secret
-AWS_REGION=us-east-1
-BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+AWS_REGION=ap-southeast-3
+AWS_EMBEDDING_REGION=ap-northeast-1
+BEDROCK_MODEL_ID=global.amazon.nova-2-lite-v1:0
+BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
 ENVIRONMENT=development
 REDIS_URL=redis://127.0.0.1:6379
+LANGWATCH_API_KEY=your_langwatch_key
+LANGWATCH_ENABLED=true
 ```
 
 ## Usage
@@ -138,6 +148,10 @@ open http://localhost:8000/widget/embed  # Embed code
 
 ### Health
 - **GET /health** - Health check endpoint
+
+### RAG Ingestion
+- **POST /ingest** - Trigger document ingestion from S3
+- **GET /ingest/status** - Check ingestion status
 
 ### Health Check
 ```bash
@@ -331,18 +345,18 @@ make quality   # Run all checks
 
 ## Documentation
 
-- **[QUICKSTART.md](QUICKSTART.md)** - Setup cepat 5 menit
-- **[LANGWATCH_QUICKSTART.md](docs/LANGWATCH_QUICKSTART.md)** - LangWatch setup 5 menit
-- **[LANGWATCH_INTEGRATION.md](LANGWATCH_INTEGRATION.md)** - LangWatch integration summary
-- **[docs/LANGWATCH.md](docs/LANGWATCH.md)** - LangWatch complete guide
-- **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment guide
+### Core Documentation
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture overview
-- **[docs/WIDGET_QUICKSTART.md](docs/WIDGET_QUICKSTART.md)** - Widget quick start
-- **[docs/WIDGET.md](docs/WIDGET.md)** - Widget documentation
+- **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment guide
+
+### Widget Documentation
+- **[docs/WIDGET_QUICKSTART.md](docs/WIDGET_QUICKSTART.md)** - Widget setup 3 menit
+- **[docs/WIDGET.md](docs/WIDGET.md)** - Widget complete guide
 - **[docs/WIDGET_STRUCTURE.md](docs/WIDGET_STRUCTURE.md)** - Widget structure
-- **[MIGRATION.md](MIGRATION.md)** - Panduan migrasi dari struktur lama
-- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Checklist production
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history
+
+### Optional Features
+- **[docs/LANGWATCH_QUICKSTART.md](docs/LANGWATCH_QUICKSTART.md)** - LangWatch setup 5 menit
+- **[docs/LANGWATCH.md](docs/LANGWATCH.md)** - LangWatch complete guide
 
 ## License
 

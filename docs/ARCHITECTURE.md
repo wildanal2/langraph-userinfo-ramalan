@@ -132,6 +132,10 @@ Widget UI Update (real-time)
 - **GET /widget/embed**: Embed code & documentation
 - **GET /static/widget/***: Static assets (CSS, JS, images)
 
+### RAG Endpoints
+- **POST /ingest**: Trigger document ingestion from S3
+- **GET /ingest/status**: Check ingestion status
+
 ### LangGraph Workflow
 - **Entry Point**: Route based on user type (new/returning)
 - **Classifier Node**: Determine intent (asking/answering)
@@ -184,8 +188,10 @@ ENVIRONMENT=production|development
 # AWS
 AWS_ACCESS_KEY_ID=xxx
 AWS_SECRET_ACCESS_KEY=xxx
-AWS_REGION=us-east-1
-BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+AWS_REGION=ap-southeast-3
+AWS_EMBEDDING_REGION=ap-northeast-1
+BEDROCK_MODEL_ID=global.amazon.nova-2-lite-v1:0
+BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
 
 # Redis
 REDIS_URL=redis://127.0.0.1:6379
@@ -198,6 +204,10 @@ MAX_REQUEST_SIZE=1048576
 # LLM
 LLM_TIMEOUT=30
 LLM_MAX_RETRIES=3
+
+# LangWatch (Optional)
+LANGWATCH_API_KEY=lw_xxx
+LANGWATCH_ENABLED=true
 
 # Logging
 LOG_LEVEL=INFO|WARNING|ERROR
@@ -300,16 +310,12 @@ Response:
 - [ ] Rate limiting middleware
 - [ ] Authentication/authorization
 - [ ] Metrics collection (Prometheus)
-- [ ] Distributed tracing (OpenTelemetry)
 - [ ] Response caching
 - [ ] API versioning
 - [ ] WebSocket support
-- [ ] Database integration
-- [ ] Message queue (async processing)
 - [ ] Admin dashboard
-- [ ] Widget analytics & tracking
-- [ ] Multi-language widget support
-- [ ] Widget theme customization API
+- [ ] Widget analytics
+- [ ] Multi-language support
 
 ## Related Documentation
 
