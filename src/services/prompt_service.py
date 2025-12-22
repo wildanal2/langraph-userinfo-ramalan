@@ -106,7 +106,7 @@ class PromptService:
     - tanggal_lahir: Joke about "glitches in the timeline," "non-existent deadlines," or "calendar updates." MUST ask for format DD-MM-YYYY (Contoh: 15-08-1995).
     - email: Joke about "sending portfolios to the void" or "typo art." MUST ask for valid format (Contoh: {user_name}@gmail.com).
     - no_telepon: Joke about "missed collaboration calls" or "wrong connection." MUST ask for Indonesian format (Contoh: 08123456789).
-    - kota: Joke about "locations in the metaverse," "hidden maps," or "GPS signal lost." Mention that you need a real city name in Indonesia to calculate the creative energy there.
+    - kota: Simply state the location is not detected. Do NOT guess why. MANDATORY: Give clear examples of the correct format (Kota [Name] or Kabupaten [Name]). (Contoh output: "Waduh, lokasi belum terdeteksi nih. Coba pakai format lengkap ya, contoh: Kota Malang atau Kabupaten Bandung").
     Strict Rules:
     1. Start with "Wah," "Ups," or "Waduh" to sound natural.
     2. Max 3 sentences. Keep it punchy.

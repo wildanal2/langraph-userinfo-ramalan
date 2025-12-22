@@ -34,13 +34,12 @@ def validate_date(date_str: str) -> bool:
             continue
     return False
 
-
 def validate_location(location_name: str) -> Tuple[bool, str]:
     """
-    Strict location validation: Must be in Indonesia & Must be Administrative Region.
-    Returns: (is_valid: bool, formatted_name: str)
+    Validate Indonesian location using geopy and Nominatim.
+    Returns (is_valid: bool, clean_name: str)
     """
-    geolocator = Nominatim(user_agent="ekraf_bot_validator_v2")
+    geolocator = Nominatim(user_agent="ekraf_bot")
     
     try:
         location = geolocator.geocode(location_name, language='id', addressdetails=True)
@@ -50,32 +49,24 @@ def validate_location(location_name: str) -> Tuple[bool, str]:
             
         raw_data = location.raw
         address = raw_data.get('address', {})
-        
+
         if address.get('country_code') != 'id':
-            # Opsional: Bisa return False atau biarkan kalau mau support global
-            return False, location_name 
-            
-        invalid_classes = ['amenity', 'shop', 'tourism', 'highway', 'man_made', 'leisure', 'office']
-        if raw_data.get('class') in invalid_classes:
             return False, location_name
 
-        valid_keys = ['city', 'town', 'village', 'county', 'state', 'municipality', 'suburb', 'neighbourhood', 'district']
+        detected_type = raw_data.get('addresstype') or raw_data.get('type')
         
-        found_key = next((k for k in valid_keys if k in address), None)
+        valid_types = ['city', 'county', 'municipality']
         
-        if found_key:
-            clean_name = address[found_key]
-            
-            if found_key in ['suburb', 'neighbourhood', 'village']:
-                parent = address.get('city') or address.get('county') or address.get('state')
-                if parent:
-                    clean_name = f"{clean_name}, {parent}"
-            
-            return True, clean_name
-            
-        return False, location_name
+        if detected_type not in valid_types:
+            return False, location_name
 
-    except (GeocoderTimedOut, GeocoderServiceError):
-        return True, location_name 
+        clean_name = address.get('city') or address.get('county') or address.get('municipality')
+        
+        if not clean_name:
+            clean_name = location.address.split(',')[0]
+            
+        return True, clean_name
+
     except Exception as e:
+        print(f"[ERROR] Location Validation Fail: {e}")
         return True, location_name
