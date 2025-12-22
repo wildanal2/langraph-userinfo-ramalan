@@ -4,7 +4,7 @@ from src.services import LLMService, SessionService, PromptService
 from src.rag.retrieval.rag_pipeline import rag_pipeline
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.security import validate_email, validate_phone, validate_date
+from src.core.security import validate_email, validate_phone, validate_date, validate_location
 
 logger = get_logger(__name__)
 
@@ -41,15 +41,21 @@ def chatbot_node(state: AgentState) -> AgentState:
         for key in all_fields:
             extracted_val = getattr(extracted, key)
             if extracted_val and not user_data.get(key):
-                # Validate specific fields (except tanggal_lahir - let LLM handle it)
                 if key == "email" and not validate_email(extracted_val):
                     validation_failed = (key, user_input)
                     break
                 if key == "no_telepon" and not validate_phone(extracted_val):
                     validation_failed = (key, user_input)
                     break
+                if key == "tanggal_lahir" and not validate_date(extracted_val):
+                    validation_failed = (key, user_input)
+                    break
+                if key == "kota":
+                    if not is_valid_loc:
+                        validation_failed = (key, user_input)
+                        break
+                    extracted_val = normalized_loc
                 user_data[key] = extracted_val
-        
         session_service.save_user_data(session_id, user_data)
     
     # Handle validation error with friendly message
@@ -149,7 +155,6 @@ def classifier_node(state: AgentState) -> AgentState:
         **state,
         "intent": intent
     }
-
 def rag_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
