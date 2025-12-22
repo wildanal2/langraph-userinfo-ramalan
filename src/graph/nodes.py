@@ -51,7 +51,6 @@ def chatbot_node(state: AgentState) -> AgentState:
                     validation_failed = (key, user_input)
                     break
                 if key == "kota":
-                    is_valid_loc, normalized_loc = validate_location(extracted_val)
                     if not is_valid_loc:
                         validation_failed = (key, user_input)
                         break
