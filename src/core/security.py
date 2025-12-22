@@ -1,8 +1,6 @@
 import re
 from datetime import datetime
-from typing import Tuple 
-from geopy.geocoders import Nominatim 
-from geopy.exc import GeocoderTimedOut, GeocoderServiceError 
+from typing import Optional
 
 def sanitize_input(text: str, max_length: int = 500) -> str:
     """Sanitize user input"""
@@ -33,49 +31,3 @@ def validate_date(date_str: str) -> bool:
         except ValueError:
             continue
     return False
-
-
-def validate_location(location_name: str) -> Tuple[bool, str]:
-    """
-    Strict location validation: Must be in Indonesia & Must be Administrative Region.
-    Returns: (is_valid: bool, formatted_name: str)
-    """
-    geolocator = Nominatim(user_agent="ekraf_bot_validator_v2")
-    
-    try:
-        location = geolocator.geocode(location_name, language='id', addressdetails=True)
-        
-        if not location:
-            return False, location_name
-            
-        raw_data = location.raw
-        address = raw_data.get('address', {})
-        
-        if address.get('country_code') != 'id':
-            # Opsional: Bisa return False atau biarkan kalau mau support global
-            return False, location_name 
-            
-        invalid_classes = ['amenity', 'shop', 'tourism', 'highway', 'man_made', 'leisure', 'office']
-        if raw_data.get('class') in invalid_classes:
-            return False, location_name
-
-        valid_keys = ['city', 'town', 'village', 'county', 'state', 'municipality', 'suburb', 'neighbourhood', 'district']
-        
-        found_key = next((k for k in valid_keys if k in address), None)
-        
-        if found_key:
-            clean_name = address[found_key]
-            
-            if found_key in ['suburb', 'neighbourhood', 'village']:
-                parent = address.get('city') or address.get('county') or address.get('state')
-                if parent:
-                    clean_name = f"{clean_name}, {parent}"
-            
-            return True, clean_name
-            
-        return False, location_name
-
-    except (GeocoderTimedOut, GeocoderServiceError):
-        return True, location_name 
-    except Exception as e:
-        return True, location_name
