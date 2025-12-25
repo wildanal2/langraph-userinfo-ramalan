@@ -4,7 +4,7 @@ from src.services import LLMService, SessionService, PromptService
 from src.rag.retrieval.rag_pipeline import rag_pipeline
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.security import validate_email, validate_phone, validate_date
+from src.core.security import validate_email, validate_phone, validate_date, validate_location
 
 logger = get_logger(__name__)
 
@@ -48,8 +48,16 @@ async def chatbot_node(state: AgentState) -> AgentState:
                 if key == "no_telepon" and not validate_phone(extracted_val):
                     validation_failed = (key, user_input)
                     break
+                if key == "tanggal_lahir" and not validate_date(extracted_val):
+                    validation_failed = (key, user_input)
+                    break
+                if key == "kota":
+                    is_valid_loc, normalized_loc = validate_location(extracted_val)
+                    if not is_valid_loc:
+                        validation_failed = (key, user_input)
+                        break
+                    extracted_val = normalized_loc
                 user_data[key] = extracted_val
-        
         session_service.save_user_data(session_id, user_data)
     
     # Handle validation error
@@ -83,7 +91,7 @@ async def chatbot_node(state: AgentState) -> AgentState:
         user_msg = messages[-1].content.lower() if messages and isinstance(messages[-1], HumanMessage) else ""
         
         if "ramalan karir" in user_msg:
-            prompt = PromptService.format_completion_prompt(
+            prompt = PromptService.format_gimmick_prompt(
                 user_data.get("nama", ""),
                 user_data.get("kota", ""),
                 user_data.get("tanggal_lahir", "")
