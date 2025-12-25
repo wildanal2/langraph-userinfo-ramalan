@@ -26,65 +26,71 @@ class IntentClassification(BaseModel):
 
 class LLMService:
     def __init__(self):
-        self.llm = get_bedrock_client()
-        self.structured_llm = self.llm.with_structured_output(ExtractedData)
-        self.intent_llm = self.llm.with_structured_output(IntentClassification)
+        self.llm = get_bedrock_client(max_tokens=1000, temperature=0.5)
+        self.structured_llm = get_bedrock_client(max_tokens=500, temperature=0.5).with_structured_output(ExtractedData)
+        self.intent_llm = get_bedrock_client(max_tokens=20, temperature=0.0).with_structured_output(IntentClassification)
     
     @retry(
         stop=stop_after_attempt(settings.llm_max_retries),
         wait=wait_exponential(multiplier=1, min=2, max=10)
     )
-    def invoke(self, prompt: str) -> str:
+    async def ainvoke(self, prompt: str) -> str:
         try:
             config = None
             if settings.langwatch_enabled:
                 config = RunnableConfig(
                     callbacks=[langwatch.get_current_trace().get_langchain_callback()]
                 )
-            response = self.llm.invoke([HumanMessage(content=prompt)], config=config)
+            response = await self.llm.ainvoke([HumanMessage(content=prompt)], config=config)
             return response.content if isinstance(response.content, str) else ""
         except Exception as e:
             logger.error(f"LLM invocation failed: {e}")
             raise LLMServiceError(f"LLM invocation failed: {e}")
     
-    @retry(
-        stop=stop_after_attempt(settings.llm_max_retries),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
-    )
-    def extract_data(self, prompt: str) -> ExtractedData:
+    async def astream(self, prompt: str):
         try:
             config = None
             if settings.langwatch_enabled:
                 config = RunnableConfig(
                     callbacks=[langwatch.get_current_trace().get_langchain_callback()]
                 )
-            return self.structured_llm.invoke(prompt, config=config)
+            async for chunk in self.llm.astream([HumanMessage(content=prompt)], config=config):
+                yield chunk
+        except Exception as e:
+            logger.error(f"LLM streaming failed: {e}")
+            raise LLMServiceError(f"LLM streaming failed: {e}")
+
+    @retry(
+        stop=stop_after_attempt(settings.llm_max_retries),
+        wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
+    async def extract_data(self, prompt: str) -> ExtractedData:
+        try:
+            config = None
+            if settings.langwatch_enabled:
+                config = RunnableConfig(
+                    callbacks=[langwatch.get_current_trace().get_langchain_callback()]
+                )
+            return await self.structured_llm.ainvoke(prompt, config=config)
         except Exception as e:
             logger.error(f"Data extraction failed: {e}")
             raise LLMServiceError(f"Data extraction failed: {e}")
-    
+
     @retry(
         stop=stop_after_attempt(settings.llm_max_retries),
         wait=wait_exponential(multiplier=1, min=2, max=10)
     )
-    def classify_intent(self, prompt: str) -> str:
+    async def classify_intent(self, prompt: str) -> str:
         try:
             config = None
             if settings.langwatch_enabled:
                 config = RunnableConfig(
                     callbacks=[langwatch.get_current_trace().get_langchain_callback()]
                 )
-            result = self.intent_llm.invoke(prompt, config=config)
+            result = await self.intent_llm.ainvoke(prompt, config=config)
             return result.intent
         except Exception as e:
             logger.error(f"Intent classification failed: {e}")
             raise LLMServiceError(f"Intent classification failed: {e}")
-    
-    def stream(self, prompt: str):
-        try:
-            return self.llm.stream([HumanMessage(content=prompt)])
-        except Exception as e:
-            logger.error(f"LLM streaming failed: {e}")
-            raise LLMServiceError(f"LLM streaming failed: {e}")
 
 llm_service = LLMService()

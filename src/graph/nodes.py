@@ -22,7 +22,7 @@ BIDANG_EKRAF_OPTIONS = [
 
 KOMUNITAS_OPTIONS = ["Ada", "Ada, banyak", "Tidak Ada"]
 
-def chatbot_node(state: AgentState) -> AgentState:
+async def chatbot_node(state: AgentState) -> AgentState:
     user_data = state.get("user_data", {})
     messages = state.get("messages", [])
     session_id = state["session_id"]
@@ -36,12 +36,12 @@ def chatbot_node(state: AgentState) -> AgentState:
     if messages and isinstance(messages[-1], HumanMessage):
         user_input = messages[-1].content
         extraction_prompt = f"Extract user info based on this input: '{user_input}'. Focus on missing fields."
-        extracted = llm_service.extract_data(extraction_prompt)
+        
+        extracted = await llm_service.extract_data(extraction_prompt)
 
         for key in all_fields:
             extracted_val = getattr(extracted, key)
             if extracted_val and not user_data.get(key):
-                # Validate specific fields (except tanggal_lahir - let LLM handle it)
                 if key == "email" and not validate_email(extracted_val):
                     validation_failed = (key, user_input)
                     break
@@ -52,12 +52,13 @@ def chatbot_node(state: AgentState) -> AgentState:
         
         session_service.save_user_data(session_id, user_data)
     
-    # Handle validation error with friendly message
+    # Handle validation error
     if validation_failed:
         field_name, invalid_input = validation_failed
         user_name = user_data.get("nama", "")
         error_prompt = PromptService.format_validation_error(user_name, invalid_input, field_name)
-        response_content = llm_service.invoke(error_prompt)
+        
+        response_content = await llm_service.ainvoke(error_prompt)
         
         return {
             "messages": messages + [AIMessage(content=response_content)],
@@ -87,7 +88,8 @@ def chatbot_node(state: AgentState) -> AgentState:
                 user_data.get("kota", ""),
                 user_data.get("tanggal_lahir", "")
             )
-            response_content = llm_service.invoke(prompt)
+            
+            response_content = await llm_service.ainvoke(prompt)
             
             return {
                 "messages": messages + [AIMessage(content=response_content)],
@@ -116,7 +118,7 @@ def chatbot_node(state: AgentState) -> AgentState:
             }
 
     prompt = PromptService.format_collector_prompt(user_data, next_step)
-    response_content = llm_service.invoke(prompt)
+    response_content = await llm_service.ainvoke(prompt)
     
     # Add motivation separator marker after 4th answer
     if show_motivation:
@@ -139,7 +141,7 @@ def chatbot_node(state: AgentState) -> AgentState:
         "interactive_options": interactive_options
     }
 
-def classifier_node(state: AgentState) -> AgentState:
+async def classifier_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
     
@@ -151,18 +153,20 @@ def classifier_node(state: AgentState) -> AgentState:
     
     last_ai_msg = next((m.content for m in reversed(messages[:-1]) if isinstance(m, AIMessage)), None)
     prompt = PromptService.format_intent_prompt(last_ai_msg, user_msg)
-    intent = llm_service.classify_intent(prompt)
+
+    intent = await llm_service.classify_intent(prompt)
     
     return {
         **state,
         "intent": intent
     }
 
-def rag_node(state: AgentState) -> AgentState:
+async def rag_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
-    rag_chat = get_rag_chat()
-    response_content = rag_chat.invoke({"question": user_msg})
+    rag_chat = await get_rag_chat()
+    
+    response_content = await rag_chat.ainvoke({"question": user_msg})
 
     return {
         "messages": messages + [AIMessage(content=response_content)],
