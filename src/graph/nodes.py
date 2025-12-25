@@ -20,7 +20,7 @@ BIDANG_EKRAF_OPTIONS = [
     "Seni Pertunjukan", "Seni Rupa", "Televisi dan Radio", "Permainan Interaktif (Game Developer)"
 ]
 
-KOMUNITAS_OPTIONS = ["Ada 1", "Ada banyak >2"]
+KOMUNITAS_OPTIONS = ["Ada", "Ada, banyak", "Tidak Ada"]
 
 async def chatbot_node(state: AgentState) -> AgentState:
     user_data = state.get("user_data", {})
@@ -71,6 +71,10 @@ async def chatbot_node(state: AgentState) -> AgentState:
             "interactive_options": None
         }
 
+    # Check if user just completed 4th field for motivation message
+    filled_count = len([v for v in user_data.values() if v])
+    show_motivation = filled_count == 4
+
     next_step = next((f for f in mandatory_fields if not user_data.get(f)), None)
     if not next_step:
         next_step = next((f for f in optional_fields if not user_data.get(f)), "complete")
@@ -115,6 +119,10 @@ async def chatbot_node(state: AgentState) -> AgentState:
 
     prompt = PromptService.format_collector_prompt(user_data, next_step)
     response_content = await llm_service.ainvoke(prompt)
+    
+    # Add motivation separator marker after 4th answer
+    if show_motivation:
+        response_content = "[SEPARATOR:Dikit lagi untuk lihat hasilnya...]" + response_content
 
     interactive_options = None
     if next_step == "bidang_ekraf":
