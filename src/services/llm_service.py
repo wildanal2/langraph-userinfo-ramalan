@@ -16,7 +16,7 @@ class ExtractedData(BaseModel):
     kota: str | None = Field(None, description="Kota domisili user")
     tanggal_lahir: str | None = Field(None, description="Tanggal lahir user dalam format DD-MM-YYYY. Ekstrak dan konversi dari format apapun (contoh: '12 Desember 2003' menjadi '12-12-2003', '12.10.2002' menjadi '12-10-2002')")
     bidang_ekraf: str | None = Field(None, description="Bidang ekonomi kreatif yang ditekuni")
-    jumlah_komunitas_ekraf_disekitar: str | None = Field(None, description="Jumlah angka komunitas")
+    jumlah_komunitas_ekraf_disekitar: str | None = Field(None, description="Informasi keberadaan komunitas ekraf di sekitar user. Bisa berupa: 'Ada', 'Ada, banyak', 'Tidak Ada', atau angka/deskripsi lainnya")
     email: str | None = Field(None, description="Alamat email valid")
     no_telepon: str | None = Field(None, description="Nomor telepon")
     harapan: str | None = Field(None, description="Harapan atau tujuan user")
