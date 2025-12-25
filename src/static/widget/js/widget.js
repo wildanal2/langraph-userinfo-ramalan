@@ -4,7 +4,7 @@
     class KreaChatWidget {
         constructor(config = {}) {
             this.apiUrl = config.apiUrl || 'http://localhost:8000';
-            this.logoUrl = config.logoUrl || '/static/widget/images/krea-ai.png';
+            this.logoUrl = config.logoUrl || '/static/widget/images/iccn-ai.png';
             this.sessionId = localStorage.getItem('krea_session_id') || null;
             this.sessionState = null;
             this.init();
@@ -14,6 +14,16 @@
             this.injectStyles();
             this.createWidget();
             this.attachEventListeners();
+            this.autoOpenForNewUser();
+        }
+
+        autoOpenForNewUser() {
+            if (!this.sessionId) {
+                setTimeout(() => {
+                    document.getElementById('kreaChatWidget').classList.add('active');
+                    this.initChat();
+                }, 500);
+            }
         }
 
         injectStyles() {
@@ -29,15 +39,15 @@
         createWidget() {
             const widgetHTML = `
                 <div id="kreaChatBubble" class="krea-chat-bubble">
-                    <img src="/static/widget/images/krea-ai.png" alt="Krea.ai" style="width: 52px; height: 52px; display: block;">
+                    <img src="/static/widget/images/iccn-ai.png" alt="Krea.ai" style="width: 52px; height: 52px; display: block;">
                 </div>
                 <div id="kreaChatWidget" class="krea-chat-widget">
                     <div class="krea-chat-header">
                         <div class="krea-chat-header-info">
                             <img src="${this.logoUrl}" alt="Krea.ai" class="krea-chat-logo">
                             <div>
-                                <h3 class="krea-chat-title">Krea.ai</h3>
-                                <p class="krea-chat-subtitle">Temukan takdir kreatifmu</p>
+                                <h3 class="krea-chat-title">ICCN AI</h3>
+                                <p class="krea-chat-subtitle">Asisten Cerdas & Ramalan Digital Nusantara</p>
                             </div>
                         </div>
                         <button id="kreaChatClose" class="krea-chat-close">
@@ -52,7 +62,6 @@
                             <input type="text" id="kreaChatInput" class="krea-chat-input" placeholder="Ketik pesan...">
                             <button id="kreaChatSend" class="krea-chat-send">Kirim</button>
                         </div>
-                        <button id="kreaChatReset" class="krea-chat-reset">🔄 Mulai Ulang</button>
                     </div>
                 </div>
             `;
@@ -66,7 +75,6 @@
             document.getElementById('kreaChatInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') this.sendMessage();
             });
-            document.getElementById('kreaChatReset').addEventListener('click', () => this.resetChat());
         }
 
         toggleWidget() {
@@ -181,6 +189,7 @@
 
             const botBubble = this.addMessage('<span class="krea-typing-dots"><span>.</span><span>.</span><span>.</span></span>', false);
             let fullResponse = '';
+            let separatorRendered = false;
 
             try {
                 const response = await fetch(`${this.apiUrl}/chat/stream`, {
@@ -218,7 +227,21 @@
                                 } else if (typeof data.content === 'string') {
                                     fullResponse += data.content;
                                 }
-                                botBubble.innerHTML = this.parseBold(fullResponse);
+                                
+                                const parsed = this.parseAndRenderSeparator(fullResponse);
+                                
+                                if (parsed.hasSeparator && !separatorRendered) {
+                                    const messagesContainer = document.getElementById('kreaChatMessages');
+                                    const separatorDiv = document.createElement('div');
+                                    separatorDiv.className = 'krea-separator';
+                                    separatorDiv.innerHTML = `<span>${parsed.separatorText}</span>`;
+                                    messagesContainer.insertBefore(separatorDiv, botBubble.closest('.krea-message'));
+                                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                                    separatorRendered = true;
+                                    fullResponse = parsed.content;
+                                }
+                                
+                                botBubble.innerHTML = this.parseBold(parsed.content);
                             } else {
                                 this.sessionState = data.session_state;
                                 if (data.session_id) {
@@ -261,6 +284,16 @@
 
         parseBold(text) {
             return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        }
+
+        parseAndRenderSeparator(text) {
+            const separatorMatch = text.match(/\[SEPARATOR:(.+?)\]/);
+            if (separatorMatch) {
+                const separatorText = separatorMatch[1];
+                const contentAfter = text.replace(/\[SEPARATOR:.+?\]/, '');
+                return { hasSeparator: true, separatorText, content: contentAfter };
+            }
+            return { hasSeparator: false, content: text };
         }
 
         disableAllInteractiveButtons() {

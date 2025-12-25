@@ -2,10 +2,10 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, #FF1C00 0%, #CC1600 100%);
     border-radius: 50%;
     padding: 8px;
-    box-shadow: 0 10px 40px rgba(147, 51, 234, 0.4);
+    box-shadow: 0 10px 40px rgba(255, 28, 0, 0.4);
     cursor: pointer;
     z-index: 9998;
     transition: transform 0.2s;
@@ -35,7 +35,7 @@
 }
 
 .krea-chat-header {
-    background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, #FF1C00 0%, #CC1600 100%);
     padding: 16px;
     display: flex;
     justify-content: space-between;
@@ -140,8 +140,8 @@
 }
 
 .krea-message.bot .krea-message-bubble {
-    background: #9333ea;
-    color: white;
+    background: #E8E8E8;
+    color: #000000;
     border-bottom-left-radius: 4px;
 }
 
@@ -150,7 +150,7 @@
 }
 
 .krea-message.user .krea-message-bubble {
-    background: #4f46e5;
+    background: #ED1601;
     color: white;
     border-bottom-right-radius: 4px;
 }
@@ -176,12 +176,12 @@
 }
 
 .krea-chat-input:focus {
-    border-color: #9333ea;
-    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
+    border-color: #FF1C00;
+    box-shadow: 0 0 0 3px rgba(255, 28, 0, 0.1);
 }
 
 .krea-chat-send {
-    background: #9333ea;
+    background: #FF1C00;
     color: white;
     border: none;
     border-radius: 24px;
@@ -192,7 +192,7 @@
 }
 
 .krea-chat-send:hover {
-    background: #7e22ce;
+    background: #CC1600;
 }
 
 .krea-chat-reset {
@@ -232,9 +232,9 @@
 }
 
 .krea-option-btn {
-    background: white;
-    border: 2px solid #9333ea;
-    color: #9333ea;
+    background: #FFE9E6;
+    border: 2px solid #FF1C00;
+    color: #FF1C00;
     padding: 8px 16px;
     border-radius: 24px;
     font-size: 13px;
@@ -243,12 +243,12 @@
 }
 
 .krea-option-btn:hover {
-    background: #9333ea;
+    background: #FF1C00;
     color: white;
 }
 
 .krea-fortune-btn {
-    background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+    background: linear-gradient(135deg, #FF1C00 0%, #CC1600 100%);
     color: white;
     border: none;
     padding: 10px 20px;
@@ -256,16 +256,16 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(255, 28, 0, 0.3);
 }
 
 .krea-fortune-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(147, 51, 234, 0.4);
+    box-shadow: 0 6px 16px rgba(255, 28, 0, 0.4);
 }
 
 .krea-sso-btn {
-    background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%);
+    background: linear-gradient(135deg, #FF1C00 0%, #CC1600 100%);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -275,10 +275,44 @@
     cursor: pointer;
     text-decoration: none;
     display: inline-block;
-    box-shadow: 0 6px 20px rgba(147, 51, 234, 0.4);
+    box-shadow: 0 6px 20px rgba(255, 28, 0, 0.4);
 }
 
 .krea-sso-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 8px 24px rgba(147, 51, 234, 0.5);
+    box-shadow: 0 8px 24px rgba(255, 28, 0, 0.5);
+}
+
+.krea-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 16px 0;
+    text-align: center;
+}
+
+.krea-separator::before,
+.krea-separator::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #E8E8E8;
+}
+
+.krea-separator::before {
+    margin-right: 12px;
+}
+
+.krea-separator::after {
+    margin-left: 12px;
+}
+
+.krea-separator span {
+    background: #E8E8E8;
+    color: #525252;
+    padding: 6px 16px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
