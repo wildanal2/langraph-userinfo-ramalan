@@ -1,8 +1,6 @@
 import re
 from datetime import datetime
-from typing import Tuple 
-from geopy.geocoders import Nominatim 
-from geopy.exc import GeocoderTimedOut, GeocoderServiceError 
+from typing import Optional
 
 def sanitize_input(text: str, max_length: int = 500) -> str:
     """Sanitize user input"""
@@ -33,40 +31,3 @@ def validate_date(date_str: str) -> bool:
         except ValueError:
             continue
     return False
-
-def validate_location(location_name: str) -> Tuple[bool, str]:
-    """
-    Validate Indonesian location using geopy and Nominatim.
-    Returns (is_valid: bool, clean_name: str)
-    """
-    geolocator = Nominatim(user_agent="ekraf_bot")
-    
-    try:
-        location = geolocator.geocode(location_name, language='id', addressdetails=True)
-        
-        if not location:
-            return False, location_name
-            
-        raw_data = location.raw
-        address = raw_data.get('address', {})
-
-        if address.get('country_code') != 'id':
-            return False, location_name
-
-        detected_type = raw_data.get('addresstype') or raw_data.get('type')
-        
-        valid_types = ['city', 'county', 'municipality']
-        
-        if detected_type not in valid_types:
-            return False, location_name
-
-        clean_name = address.get('city') or address.get('county') or address.get('municipality')
-        
-        if not clean_name:
-            clean_name = location.address.split(',')[0]
-            
-        return True, clean_name
-
-    except Exception as e:
-        print(f"[ERROR] Location Validation Fail: {e}")
-        return True, location_name
