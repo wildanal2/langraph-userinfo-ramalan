@@ -28,16 +28,25 @@ class PromptService:
     1.  Analyze the '{next_step}' and generate a question to ask for ONLY that specific field.
     2.  Custom Flavor per Field:
         - Name: Ask for their "nama panggilan".
-        - Date of Birth (Important for Ramalan): Say you need this to read their "star alignment" or "zodiac chart".
+        - Date of Birth (Important for Ramalan): Say you need this to read their zodiac chart
         - Kota/Domisili: Ask where their city or regency is currently located.
         - Email: Ask for their email to send "briefs", "official scrolls", or "future predictions".
         - Phone: Ask for their WhatsApp/Number as a "fast response line" or "VIP connection".
         - Job/Role: Ask what "karya" they create.
+
+    **CRITICAL BOLDING RULE:**
+    You MUST bold (**text**) the specific item you are asking for in the sentence.
+    - If asking Name -> bold **nama**
+    - If asking Date of Birth -> bold **tanggal lahir**
+    - If asking City -> bold **kota** or **domisili**
+    - If asking Email -> bold **email**
+    - If asking Phone -> bold **nomor WhatsApp** or **nomor HP**
+    - If asking Job -> bold **pekerjaan** or **karya**
     
     Strict Rules:
     1. Max 3 sentences.
-    2. NO lists, NO bullet points.
-    3. Output **PLAIN TEXT only**.    
+    2. NO lists, NO bullet points, NO emojis.
+    3. Output plain text with **bold keywords**. 
     
     Task: Generate the question for '{next_step}' based on the guidelines above.
     """
@@ -50,7 +59,6 @@ class PromptService:
     
     STRUCTURE & INSTRUCTIONS:
     
-    **Opening**
     State the birth date, Western Zodiac, and Chinese Shio (estimate based on year).
     Example: "Lahir pada {tanggal_lahir}, secara astrologi kamu adalah **Leo** dengan Shio **Anjing**."
     
@@ -63,7 +71,6 @@ class PromptService:
     **3. Tantangan & Strategi Sukses**
     Give one specific challenge they might face and a strategy to overcome it.
     
-    **Kesimpulan**
     Summarize their "Star Quality" and "Reliability" into a motivating closing statement.
     
     TONE & FORMAT RULES:
@@ -100,23 +107,31 @@ class PromptService:
     Generate a welcome message that invites the user to check their "Ramalan Karir".
     Ask for their name to start the reading.
     
-    Strict rules: 
+    CRITICAL BOLDING RULES:
+    1. You MUST bold the word "**Ekraf**".
+    2. You MUST bold the phrase "**Ramalan Karir**".
+    3. You MUST bold the word "**nama**".
+    4. DO NOT bold any other words.
+    
+    Strict constraints: 
     1. Max 3 sentences. 
-    2. Must mention "Ramalan Karir" as a hook.
-    3. Output ONLY raw text. No markdown.
+    2. Output plain text only. NO markdown headers, NO italics. 
     """
     
     WELCOME_RETURNING_USER = """
-    Generate a warm "Welcome Back" message for '{nama}'.
-    Tone: Like greeting a close friend. Use "aku/kamu". NO "lo/gue".
+    Role: Creative Companion.
+    Tone: Warm, friendly, and direct. Use "aku/kamu". STRICTLY NO "Anda/Kami".
     
-    Task:
-    Greet them specifically by name and ask if they want to continue their creative journey or need help with info.
+    Task: 
+    1. Greet '{nama}' back enthusiastically (e.g., "Hai", "Halo").
+    2. Offer specific help: asking about ICCN/ICCF or checking Career Prediction.
     
-    Strict rules: 
-    1. Max 2 sentences. 
-    2. Use particles like "nih", "lagi", "dong".
-    3. Output ONLY raw text. No markdown.
+    """ + BASIC_FORMAT_RULES + """
+    
+    Task: Write the message in max 2 sentences. 
+    1. You MUST bold the user's **Name**.
+    2. You MUST use this specific closing phrase (adapted to 'kamu'): 
+       "Kamu bisa bertanya seputar **ICCN dan ICCF** ataupun mengetahui **Ramalan Karir** kamu dengan mengklik tombol di bawah ini."
     """
     
     INTENT_CLASSIFICATION = """
