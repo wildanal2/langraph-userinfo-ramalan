@@ -44,18 +44,21 @@ async def chatbot_node(state: AgentState) -> AgentState:
             extracted_val = getattr(extracted, key)
             if extracted_val and not user_data.get(key):
                 if key == "email" and not validate_email(extracted_val):
-                    validation_failed = (key, user_input)
+                    validation_failed = (key, user_input, "invalid_format")
                     break
                 if key == "no_telepon" and not validate_phone(extracted_val):
-                    validation_failed = (key, user_input)
+                    validation_failed = (key, user_input, "invalid_format")
                     break
-                if key == "tanggal_lahir" and not validate_date(extracted_val):
-                    validation_failed = (key, user_input)
-                    break
+                if key == "tanggal_lahir":
+                    is_valid, error_code, formatted_date = validate_date(extracted_val)
+                    if not is_valid:
+                        validation_failed = (key, user_input, error_code)
+                        break
+                    extracted_val = formatted_date 
                 if key == "kota":
-                    is_valid_loc, normalized_loc = validate_location(extracted_val)
+                    is_valid_loc, normalized_loc = await validate_location(extracted_val)
                     if not is_valid_loc:
-                        validation_failed = (key, user_input)
+                        validation_failed = (key, user_input, "invalid_location")
                         break
                     extracted_val = normalized_loc
                 user_data[key] = extracted_val
@@ -63,9 +66,14 @@ async def chatbot_node(state: AgentState) -> AgentState:
     
     # Handle validation error
     if validation_failed:
-        field_name, invalid_input = validation_failed
+        field_name, invalid_input, error_code = validation_failed
         user_name = user_data.get("nama", "")
-        error_prompt = PromptService.format_validation_error(user_name, invalid_input, field_name)
+        error_prompt = PromptService.format_validation_error(
+            user_name=user_name,
+            invalid_input=invalid_input,
+            field_name=field_name,
+            error_code=error_code
+        )
         
         response_content = await llm_service.ainvoke(error_prompt)
         
