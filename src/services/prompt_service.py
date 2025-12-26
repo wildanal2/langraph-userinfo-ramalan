@@ -1,3 +1,4 @@
+import random
 from langchain_core.prompts import ChatPromptTemplate
 class PromptService:
 
@@ -28,20 +29,20 @@ class PromptService:
     1.  Analyze the '{next_step}' and generate a question to ask for ONLY that specific field.
     2.  Custom Flavor per Field:
         - Name: Ask for their "nama panggilan".
-        - Date of Birth (Important for Ramalan): Say you need this to read their zodiac chart
-        - Kota/Domisili: Ask where their city or regency is currently located.
+        - Date of Birth (Important for Ramalan): Say you need this to read their zodiac chart.
+        - Kota/Kabupaten: Ask where their city or regency is currently located.
         - Email: Ask for their email to send "briefs", "official scrolls", or "future predictions".
         - Phone: Ask for their WhatsApp/Number as a "fast response line" or "VIP connection".
-        - Job/Role: Ask what "karya" they create.
+        - bidang_ekraf: Ask about their specific creative sub-sector. Use "bidang ekraf" (no underscore). The last sentence MUST be exactly: "Pilih bidang kreatif yang sedang kamu tekuni dibawah ini".
 
     **CRITICAL BOLDING RULE:**
     You MUST bold (**text**) the specific item you are asking for in the sentence.
     - If asking Name -> bold **nama**
     - If asking Date of Birth -> bold **tanggal lahir**
-    - If asking City -> bold **kota** or **domisili**
+    - If asking City -> bold **kota** or **kabupaten**
     - If asking Email -> bold **email**
     - If asking Phone -> bold **nomor WhatsApp** or **nomor HP**
-    - If asking Job -> bold **pekerjaan** or **karya**
+    - If asking Bidang Ekraf -> bold **bidang ekraf**
     
     Strict Rules:
     1. Max 3 sentences.
@@ -81,7 +82,6 @@ class PromptService:
     5. No markdown headers (#), use plain text with bolding (**).
     """
 
-    
     RAG_SYSTEM_PROMPT = """
     Role: You are a knowledgeable Creative Guide for ICCN (Indonesian Creative Cities Network) and ICCF.
     Goal: Answer user questions using ONLY the provided Context below.
@@ -97,27 +97,7 @@ class PromptService:
     3. If the Context DOES NOT provide the answer, please answer "Mohon maaf saat ini informasi yang ditanyakan belum tersedia di database"
     4. Output ONLY plain text. NO markdown, NO bold (**), NO headers (#), NO bullet points (-).
     """
-    
-    WELCOME_NEW_USER = """
-    Role: You are a virtual assistant for the "Ekraf" (Creative Industry) community in Indonesia.
-    Tone: Friendly, warm, and supportive. Use "aku/kamu" or neutral language. DO NOT use "lo/gue".
-    Goal: Hook the user to start the chat for a "Creative Fortune Telling" session.
-    
-    Task:
-    Generate a welcome message that invites the user to check their "Ramalan Karir".
-    Ask for their name to start the reading.
-    
-    CRITICAL BOLDING RULES:
-    1. You MUST bold the word "**Ekraf**".
-    2. You MUST bold the phrase "**Ramalan Karir**".
-    3. You MUST bold the word "**nama**".
-    4. DO NOT bold any other words.
-    
-    Strict constraints: 
-    1. Max 3 sentences. 
-    2. Output plain text only. NO markdown headers, NO italics. 
-    """
-    
+
     WELCOME_RETURNING_USER = """
     Role: Creative Companion.
     Tone: Warm, friendly, and direct. Use "aku/kamu". STRICTLY NO "Anda/Kami".
@@ -131,7 +111,7 @@ class PromptService:
     Task: Write the message in max 2 sentences. 
     1. You MUST bold the user's **Name**.
     2. You MUST use this specific closing phrase (adapted to 'kamu'): 
-       "Kamu bisa bertanya seputar **ICCN dan ICCF** ataupun mengetahui **Ramalan Karir** kamu dengan mengklik tombol di bawah ini."
+       "Kamu bisa bertanya seputar **ICCN** dan **ICCF** ataupun mengetahui **Ramalan Karir** kamu dengan mengklik tombol di bawah ini."
     """
     
     INTENT_CLASSIFICATION = """
@@ -154,17 +134,20 @@ class PromptService:
     - User Name: {user_name}
     - Invalid Input: {invalid_input}
     - Field Name: {field_name}
+    - Error-specific Joke: {error_specific_joke}
+
+    Guidelines:
+    1.  Start with a natural Indonesian interjection like "Wah," "Ups," or "Waduh."
+    2.  Incorporate the "{error_specific_joke}" into your message naturally.
+    3.  Gently guide the user to provide the correct format.
+    4.  Keep it short and friendly (max 3 sentences).
+    5.  Output ONLY plain text. NO markdown.
     
-    Guidelines based on Field:
-    - tanggal_lahir: Joke about "glitches in the timeline," "non-existent deadlines," or "calendar updates." MUST ask for format DD-MM-YYYY (Contoh: 15-08-1995).
-    - email: Joke about "typo art" or "surat nyasar". MUST ask for a valid email format (Contoh : {user_name}@gmail.com).
-    - no_telepon: Joke about "missed collaboration calls" or "wrong connection." MUST ask for Indonesian format (Contoh: 08123456789).
-    - kota: Joke about "lost creative hubs" or "misplaced studios." MUST ask for a valid Indonesian city.
-    Strict Rules:
-    1. Start with "Wah," "Ups," or "Waduh" to sound natural.
-    2. Max 3 sentences.
-    3. Treat the error as a "creative experiment" or a "unique concept" but gently ask for the standard format.
-    4. Output ONLY plain text. NO markdown.
+    Example for 'tanggal_lahir' with 'future_date' error:
+    "Waduh, sepertinya tanggal lahirmu dari masa depan! Keren sih, tapi mesin waktuku belum secanggih itu. Bisa coba pakai tanggal lahir yang benar dengan format DD-MM-YYYY (Contoh: 15-08-1995)?"
+    
+    Example for 'tanggal_lahir' with 'invalid_format' error:
+    "Ups, format tanggalnya agak nyeleneh nih, kayak karya seni abstrak! Biar aku bisa baca, bisa tolong pakai format DD-MM-YYYY (Contoh: 15-08-1995)?"
     """
     
     GIMMICK_PROMPT = """
@@ -184,6 +167,14 @@ class PromptService:
     
     Task: Write the teaser (max 3 sentences). You MUST bold the **User's Name**, **Birth Date**, and **City**.
     """
+    @staticmethod
+    def generate_welcome_new_user() -> str:
+        welcome_messages = [
+            "Selamat datang di komunitas **Ekraf**! Aku bisa bantu kamu melihat **Ramalan Karir** di dunia kreatif. Boleh kenalan dulu, siapa **nama** kamu?",
+            "Halo! Penasaran sama potensi karirmu di industri **Ekraf**? Yuk, kita mulai sesi **Ramalan Karir**! Pertama-tama, siapa **nama** kamu?",
+            "Hai, kreator! Selamat bergabung di hub **Ekraf**. Aku siap membagikan **Ramalan Karir** buat kamu. Untuk memulai, tolong kasih tau **nama** kamu dulu ya."
+        ]
+        return random.choice(welcome_messages)
     
     @staticmethod
     def format_collector_prompt(user_data: dict, next_step: str) -> str:
@@ -222,7 +213,33 @@ class PromptService:
         )
     
     @staticmethod
-    def format_validation_error(user_name: str, invalid_input: str, field_name: str) -> str:
+    def format_validation_error(user_name: str, invalid_input: str, field_name: str, error_code: str = None) -> str:
+        jokes = {
+            "tanggal_lahir": {
+                "future_date": "sepertinya tanggal lahirmu dari masa depan! Keren sih, tapi mesin waktuku belum secanggih itu. Tolong coba lagi dengan menggunakan tanggal lahir yang benar yaa.",
+                "invalid_format": "format tanggalnya agak nyeleneh nih, kayak karya seni abstrak! Biar aku bisa baca, coba pakai format DD-MM-YYYY ya (Contoh: 15-08-1995).",
+                "default": "kayaknya ada sedikit glitch di kalender nih. Bisa tolong masukkan lagi tanggal lahirmu dengan format DD-MM-YYYY (Contoh: 15-08-1995)?"
+            },
+            "email": {
+                "invalid_format": "emailnya kayaknya butuh sentuhan revisi dikit. Coba cek lagi formatnya, contohnya: nama@domain.com.",
+                "default": "format emailnya kurang pas nih. Boleh tolong periksa lagi?"
+            },
+            "no_telepon": {
+                "invalid_format": "nomor teleponnya sepertinya kurang lengkap. Coba masukkan dengan format 62xxx atau 08xxx ya.",
+                "default": "Waduh, nomornya belum valid. Bisa tolong cek lagi?"
+            },
+            "kota": {
+                "invalid_location": "hmm, aku belum nemu kota/kabupaten itu di petaku. Mungkin ada salah ketik? Coba masukkan nama kota/kabupaten yang valid di Indonesia ya. Contoh: Kota Malang atau Kabupaten Malang",
+                "default": "Aku belum kenal sama kota/kabupaten itu. Boleh coba sebutkan nama kota di Indonesia? Contoh: Kota Malang atau Kabupaten Malang"
+            }
+        }
+        
+        field_jokes = jokes.get(field_name, {})
+        error_specific_joke = field_jokes.get(error_code, field_jokes.get("default", "Inputnya kurang pas nih, boleh coba lagi?"))
+
         return PromptService.VALIDATION_ERROR_PROMPT.format(
-            user_name=user_name, invalid_input=invalid_input, field_name=field_name
+            user_name=user_name, 
+            invalid_input=invalid_input, 
+            field_name=field_name,
+            error_specific_joke=error_specific_joke
         )

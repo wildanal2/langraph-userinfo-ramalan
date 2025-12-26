@@ -30,23 +30,24 @@ async def start_message(request: StartRequest):
                 user_data = session_service.get_user_data(session_id)
                 if user_data:
                     prompt = PromptService.format_welcome_returning(user_data.get('nama', 'User'))
+                    full_response = ""
+                    async for chunk in llm_service.astream(prompt):
+                        content = ""
+                        if isinstance(chunk.content, str):
+                            content = chunk.content
+                        elif isinstance(chunk.content, list):
+                            for item in chunk.content:
+                                if isinstance(item, dict) and 'text' in item:
+                                    content += item['text']
+                        if content:
+                            full_response += content
+                            yield f"data: {json.dumps({'content': content, 'done': False})}\n\n"
+                            await asyncio.sleep(0.02)
+                    trace.update(output=full_response)
                 else:
-                    prompt = PromptService.WELCOME_NEW_USER
-                full_response = ""
-                async for chunk in llm_service.astream(prompt):
-                    content = ""
-                    if isinstance(chunk.content, str):
-                        content = chunk.content
-                    elif isinstance(chunk.content, list):
-                        for item in chunk.content:
-                            if isinstance(item, dict) and 'text' in item:
-                                content += item['text']
-                    if content:
-                        full_response += content
-                        yield f"data: {json.dumps({'content': content, 'done': False})}\n\n"
-                        await asyncio.sleep(0.02)
-
-                trace.update(output=full_response)
+                    response_content = PromptService.generate_welcome_new_user()
+                    yield f"data: {json.dumps({'content': response_content, 'done': False})}\n\n"
+                    trace.update(output=response_content)
 
                 interactive_options = None
                 if user_data and user_data.get("nama"):
