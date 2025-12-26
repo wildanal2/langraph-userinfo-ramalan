@@ -51,7 +51,7 @@ class PromptService:
     Task: Generate the question for '{next_step}' based on the guidelines above.
     """
     
-    COMPLETION_PROMPT = """
+    FULL_PROMPT = """
     Role: You are a Mystical Creative Oracle.
     Input Data: Nama={nama}, Kota={kota}, Tanggal Lahir={tanggal_lahir}
     
@@ -199,8 +199,8 @@ class PromptService:
             nama=nama, kota=kota, tanggal_lahir=tanggal_lahir
         )
     @staticmethod
-    def format_completion_prompt(nama: str, kota: str, tanggal_lahir: str) -> str:
-        return PromptService.COMPLETION_PROMPT.format(
+    def format_full_prompt(nama: str, kota: str, tanggal_lahir: str) -> str:
+        return PromptService.FULL_PROMPT.format(
             nama=nama, kota=kota, tanggal_lahir=tanggal_lahir
         )
     
