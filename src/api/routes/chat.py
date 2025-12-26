@@ -27,7 +27,7 @@ async def start_message(request: StartRequest):
             trace.update(input=session_id)
 
             try:
-                user_data = session_service.get_user_data(session_id)
+                user_data = await session_service.get_user_data(session_id)
                 if user_data:
                     prompt = PromptService.format_welcome_returning(user_data.get('nama', 'User'))
                     full_response = ""
@@ -74,7 +74,7 @@ async def chat_stream(request: ChatRequest):
         session_id = request.session_id or str(uuid.uuid4())
         with langwatch.trace(name="chat_stream") as trace:
             try:
-                user_data = session_service.get_user_data(session_id)
+                user_data = await session_service.get_user_data(session_id)
                 is_returning = user_data is not None
                 if request.session_state:
                     state = request.session_state

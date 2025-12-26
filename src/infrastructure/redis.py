@@ -1,4 +1,4 @@
-import redis
+import redis.asyncio as redis
 import json
 from typing import Optional
 from src.core.config import settings
@@ -20,44 +20,43 @@ class RedisClient:
                     socket_connect_timeout=5,
                     socket_timeout=5
                 )
-                cls._instance.client.ping()
                 logger.info("Redis connection established")
             except Exception as e:
                 logger.error(f"Redis connection failed: {e}")
                 raise ExternalServiceError(f"Redis connection failed: {e}")
         return cls._instance
     
-    def save_user_data(self, session_id: str, user_data: dict) -> None:
+    async def save_user_data(self, session_id: str, user_data: dict) -> None:
         try:
-            self.client.setex(
-                f"user:{session_id}", 
-                settings.redis_ttl, 
-                json.dumps(user_data)
-            )
+            key = f"user:{session_id}"
+            async with self.client.pipeline(transaction=False) as pipe:
+                pipe.hset(key, mapping=user_data)
+                pipe.expire(key, settings.redis_ttl)
+                await pipe.execute()
             logger.debug(f"Saved user data for session: {session_id}")
         except Exception as e:
             logger.error(f"Failed to save user data: {e}")
             raise ExternalServiceError(f"Failed to save user data: {e}")
     
-    def get_user_data(self, session_id: str) -> Optional[dict]:
+    async def get_user_data(self, session_id: str) -> Optional[dict]:
         try:
-            data = self.client.get(f"user:{session_id}")
-            return json.loads(data) if data else None
+            data = await self.client.hgetall(f"user:{session_id}")
+            return data if data else None
         except Exception as e:
             logger.error(f"Failed to get user data: {e}")
             return None
     
-    def delete_user_data(self, session_id: str) -> None:
+    async def delete_user_data(self, session_id: str) -> None:
         try:
-            self.client.delete(f"user:{session_id}")
+            await self.client.delete(f"user:{session_id}")
             logger.debug(f"Deleted user data for session: {session_id}")
         except Exception as e:
             logger.error(f"Failed to delete user data: {e}")
             raise ExternalServiceError(f"Failed to delete user data: {e}")
     
-    def health_check(self) -> bool:
+    async def health_check(self) -> bool:
         try:
-            return self.client.ping()
+            return await self.client.ping()
         except:
             return False
 

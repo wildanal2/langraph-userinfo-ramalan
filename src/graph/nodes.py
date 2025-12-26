@@ -1,3 +1,4 @@
+import asyncio
 from langchain_core.messages import HumanMessage, AIMessage
 from src.models.state import AgentState
 from src.services import LLMService, SessionService, PromptService
@@ -61,7 +62,7 @@ async def chatbot_node(state: AgentState) -> AgentState:
                         break
                     extracted_val = normalized_loc
                 user_data[key] = extracted_val
-        session_service.save_user_data(session_id, user_data)
+        await session_service.save_user_data(session_id, user_data)
     
     # Handle validation error
     if validation_failed:
@@ -99,22 +100,33 @@ async def chatbot_node(state: AgentState) -> AgentState:
         user_msg = messages[-1].content.lower() if messages and isinstance(messages[-1], HumanMessage) else ""
         
         if "ramalan karir" in user_msg:
-            prompt = PromptService.format_gimmick_prompt(
+            fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
                 user_data.get("nama", ""),
                 user_data.get("kota", ""),
                 user_data.get("tanggal_lahir", "")
             )
             
-            response_content = await llm_service.ainvoke(prompt)
+            fortune_full_prompt = PromptService.format_full_prompt(
+                user_data.get("nama", ""),
+                user_data.get("kota", ""),
+                user_data.get("tanggal_lahir", "")
+            ) 
+            async def generate_fortune_full():
+                fortune_full = await llm_service.ainvoke(fortune_full_prompt)
+                await session_service.save_user_data(session_id, {"ramalan": fortune_full})
+                logger.info(f"FINISHED generating Full Fortune for user:{session_id}")
+
+            asyncio.create_task(generate_fortune_full())
+            fortune_gimmick = await llm_service.ainvoke(fortune_gimmick_prompt)
             
             return {
-                "messages": messages + [AIMessage(content=response_content)],
+                "messages": messages + [AIMessage(content=fortune_gimmick)],
                 "user_data": user_data,
                 "next_step": "complete",
                 "session_id": session_id,
                 "is_returning_user": state["is_returning_user"],
                 "intent": state.get("intent", "answering"),
-                "fortune_full": response_content,
+                "fortune_full": fortune_gimmick,
                 "interactive_options": {
                     "type": "sso_button", 
                     "text": "✨ Cek Hasil Lengkapnya", 
