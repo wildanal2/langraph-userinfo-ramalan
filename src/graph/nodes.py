@@ -100,39 +100,56 @@ async def chatbot_node(state: AgentState) -> AgentState:
         user_msg = messages[-1].content.lower() if messages and isinstance(messages[-1], HumanMessage) else ""
         
         if "ramalan karir" in user_msg:
-            fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
-                user_data.get("nama", ""),
-                user_data.get("kota", ""),
-                user_data.get("tanggal_lahir", "")
-            )
-            
-            fortune_full_prompt = PromptService.format_full_prompt(
-                user_data.get("nama", ""),
-                user_data.get("kota", ""),
-                user_data.get("tanggal_lahir", "")
-            ) 
-            async def generate_fortune_full():
-                fortune_full = await llm_service.ainvoke(fortune_full_prompt)
-                await session_service.save_user_data(session_id, {"ramalan": fortune_full})
-                logger.info(f"FINISHED generating Full Fortune for user:{session_id}")
-
-            asyncio.create_task(generate_fortune_full())
-            fortune_gimmick = await llm_service.ainvoke(fortune_gimmick_prompt)
-            
-            return {
-                "messages": messages + [AIMessage(content=fortune_gimmick)],
-                "user_data": user_data,
-                "next_step": "complete",
-                "session_id": session_id,
-                "is_returning_user": state["is_returning_user"],
-                "intent": state.get("intent", "answering"),
-                "fortune_full": fortune_gimmick,
-                "interactive_options": {
-                    "type": "sso_button", 
-                    "text": "✨ Cek Hasil Lengkapnya", 
-                    "url": f"{settings.sso_register_url}?session_id={session_id}"
+            fortune_gimmick = (await session_service.get_user_data(session_id)).get("ramalan_gimmick")
+            if fortune_gimmick:
+                # logger.info("Returning fortune gimmick")
+                return {
+                    "messages": messages + [AIMessage(content=fortune_gimmick)],
+                    "user_data": user_data,
+                    "next_step": "complete",
+                    "session_id": session_id,
+                    "is_returning_user": state["is_returning_user"],
+                    "intent": state.get("intent", "answering"),
+                    "fortune_full": fortune_gimmick,
+                    "interactive_options": {
+                        "type": "sso_button", 
+                        "text": "✨ Cek Hasil Lengkapnya", 
+                        "url": f"{settings.sso_register_url}?session_id={session_id}"
+                    }
                 }
-            }
+            else:
+                fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
+                    user_data.get("nama", ""),
+                    user_data.get("kota", ""),
+                    user_data.get("tanggal_lahir", "")
+                )
+                fortune_full_prompt = PromptService.format_full_prompt(
+                    user_data.get("nama", ""),
+                    user_data.get("kota", ""),
+                    user_data.get("tanggal_lahir", "")
+                ) 
+                # logger.info("Generating new fortune full & gimmick")
+                async def generate_fortune_full():
+                    fortune_full = await llm_service.ainvoke(fortune_full_prompt)
+                    await session_service.save_user_data(session_id, {"ramalan_full": fortune_full})
+                    logger.info(f"FINISHED generating Full Fortune for user:{session_id}")
+                asyncio.create_task(generate_fortune_full())
+                fortune_gimmick = await llm_service.ainvoke(fortune_gimmick_prompt)
+                await session_service.save_user_data(session_id, {"ramalan_gimmick": fortune_gimmick})
+                return {
+                    "messages": messages + [AIMessage(content=fortune_gimmick)],
+                    "user_data": user_data,
+                    "next_step": "complete",
+                    "session_id": session_id,
+                    "is_returning_user": state["is_returning_user"],
+                    "intent": state.get("intent", "answering"),
+                    "fortune_full": fortune_gimmick,
+                    "interactive_options": {
+                        "type": "sso_button", 
+                        "text": "✨ Cek Hasil Lengkapnya", 
+                        "url": f"{settings.sso_register_url}?session_id={session_id}"
+                    }
+                }
         else:
             return {
                 "messages": messages + [AIMessage(content="Data kamu sudah lengkap! Klik tombol di bawah untuk melihat ramalan karirmu.")],
@@ -192,7 +209,7 @@ async def classifier_node(state: AgentState) -> AgentState:
 async def rag_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
-    rag_chat = await get_rag_chat()
+    rag_chat = get_rag_chat()
     
     response_content = await rag_chat.ainvoke({"question": user_msg})
 
