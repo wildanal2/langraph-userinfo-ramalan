@@ -1,5 +1,4 @@
 import redis.asyncio as redis
-import json
 from typing import Optional
 from src.core.config import settings
 from src.core.logging import get_logger
@@ -27,6 +26,9 @@ class RedisClient:
         return cls._instance
     
     async def save_user_data(self, session_id: str, user_data: dict) -> None:
+        if not user_data:
+            logger.warning(f"Skipping to save empty user data")
+            return
         try:
             key = f"user:{session_id}"
             async with self.client.pipeline(transaction=False) as pipe:

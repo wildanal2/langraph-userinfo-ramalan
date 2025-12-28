@@ -1,4 +1,4 @@
-import threading
+import asyncio
 from operator import itemgetter
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -13,11 +13,11 @@ logger = get_logger(__name__)
 
 class RAGPipeline:
     def __init__(self):
-        self._lock = threading.RLock()
+        self._lock = asyncio.Lock()
         self.chroma_retriever = None
         self.llm = llm_service.llm.bind(
                                         temperature=0.2,      
-                                        max_tokens=800       
+                                        max_tokens=600       
                                         ).with_retry(
                                         stop_after_attempt=settings.llm_max_retries,
                                         wait_exponential_jitter=True
@@ -25,9 +25,8 @@ class RAGPipeline:
         self.output_parser = StrOutputParser()
         self.prompt = PromptService.format_rag_prompt()
 
-    def initialize(self):
+    async def initialize(self):
         try:
-            logger.info("Initialize RAG Pipeline...")
             self.chroma_retriever = ParentChildRetriever()
             logger.info("RAG Pipeline initialized successfully")
             return True
@@ -35,20 +34,19 @@ class RAGPipeline:
             logger.error(f"Failed to initialize RAG Pipeline: {e}")
             return False
     
-    def _ensure_initialize(self):
-        if self.chroma_retriever is None:
-            logger.info("RAG Pipeline not initialized, doing initialization...")
-            if not self.initialize(): 
-                raise RuntimeError(
-                    "RAG Pipeline not available. Please run /ingest endpoint first to index documents"
-                )
+    async def _ensure_initialize(self):
+        async with self._lock:
+            if self.chroma_retriever is None:
+                logger.info("RAG Pipeline not initialized, doing initialization")
+                if not await self.initialize(): 
+                    raise RuntimeError(
+                        "RAG Pipeline not available. Please run /ingest endpoint first to index documents"
+                    )
 
-    def chat(self):
-        with self._lock:
-            self._ensure_initialize()
-            retriever = self.chroma_retriever
+    async def chat(self):
+        await self._ensure_initialize()
         chat_pipeline = (
-            RunnablePassthrough.assign(docs=itemgetter("question") | retriever)
+            RunnablePassthrough.assign(docs=itemgetter("question") | self.chroma_retriever)
             | RunnablePassthrough.assign(
                 context=lambda x: document_parser(x["docs"]),
                 history=lambda _: []
@@ -59,12 +57,10 @@ class RAGPipeline:
         )
         return chat_pipeline
 
-    def evaluate(self):
-        with self._lock:
-            self._ensure_initialize()
-            retriever = self.chroma_retriever
+    async def evaluate(self):
+        await self._ensure_initialize()
         eval_pipeline = (
-            RunnablePassthrough.assign(docs=itemgetter("question") | retriever)
+            RunnablePassthrough.assign(docs=itemgetter("question") | self.chroma_retriever)
             | RunnablePassthrough.assign(
                 context=lambda x: document_parser(x["docs"]),
             )
