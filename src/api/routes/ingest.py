@@ -12,11 +12,11 @@ ingestion_status = {
     "result": None
 }
 
-def ingestion_task(**kwargs):
+async def ingestion_task(**kwargs):
     try:
         ingestion_status["status"] = "in_progress"
         ingestion_status["message"] = "Ingestion on progress..."        
-        result = ingestion_pipeline(**kwargs)
+        result = await ingestion_pipeline(**kwargs)
         ingestion_status.update({
             "status": "completed",
             "message": "Ingestion completed successfully",

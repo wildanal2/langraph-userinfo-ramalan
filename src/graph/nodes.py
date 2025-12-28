@@ -209,7 +209,7 @@ async def classifier_node(state: AgentState) -> AgentState:
 async def rag_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
-    rag_chat = get_rag_chat()
+    rag_chat = await get_rag_chat()
     
     response_content = await rag_chat.ainvoke({"question": user_msg})
 
