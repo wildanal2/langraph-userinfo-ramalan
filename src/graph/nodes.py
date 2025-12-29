@@ -31,6 +31,24 @@ async def chatbot_node(state: AgentState) -> AgentState:
     messages = state.get("messages", [])
     session_id = state["session_id"]
 
+    user_msg = messages[-1].content.lower() if messages and isinstance(messages[-1], HumanMessage) else ""
+    if "ramalan karir" in user_msg:
+        await session_service.delete_session(session_id)
+        user_data = {}
+        next_step = "nama"
+        prompt = PromptService.format_collector_prompt(user_data, next_step)
+        response_content = await llm_service.ainvoke(prompt)
+        return {
+            "messages": messages + [AIMessage(content=response_content)],
+            "user_data": user_data,
+            "next_step": next_step,
+            "session_id": session_id,
+            "is_returning_user": state["is_returning_user"],
+            "intent": state.get("intent", "answering"),
+            "fortune_full": state.get("fortune_full", ""),
+            "interactive_options": None
+        }
+
     mandatory_fields = ["nama", "kota", "tanggal_lahir"]
     optional_fields = ["bidang_ekraf", "jumlah_komunitas_ekraf_disekitar", "email", "no_telepon"]
     all_fields = mandatory_fields + optional_fields
@@ -53,9 +71,9 @@ async def chatbot_node(state: AgentState) -> AgentState:
                     
                     if not is_valid:
                         if error_code == "typo_detected":
-                             validation_failed = (key, user_input, "custom_error", "Format emailnya kurang tepat, tolong input format email dengan benar.")
+                            validation_failed = (key, user_input, "custom_error", "Format emailnya kurang tepat, tolong input format email dengan benar.")
                         else:
-                             validation_failed = (key, user_input, error_code)
+                            validation_failed = (key, user_input, error_code)
                         break
                         
                     is_available, error_msg = await auth_service.check_email(extracted_val)
@@ -117,46 +135,25 @@ async def chatbot_node(state: AgentState) -> AgentState:
         next_step = next((f for f in optional_fields if not user_data.get(f)), "complete")
 
     if next_step == "complete":
-        user_msg = messages[-1].content.lower() if messages and isinstance(messages[-1], HumanMessage) else ""
-        
-        if "ramalan karir" in user_msg:
-            fortune_gimmick = (await session_service.get_user_data(session_id)).get("ramalan_gimmick")
-            if fortune_gimmick:
-                # logger.info("Returning fortune gimmick")
-                return {
-                    "messages": messages + [AIMessage(content=fortune_gimmick)],
-                    "user_data": user_data,
-                    "next_step": "complete",
-                    "session_id": session_id,
-                    "is_returning_user": state["is_returning_user"],
-                    "intent": state.get("intent", "answering"),
-                    "fortune_full": fortune_gimmick,
-                    "interactive_options": {
-                        "type": "sso_button", 
-                        "text": "✨ Cek Hasil Lengkapnya", 
-                        "url": f"{settings.sso_register_url}?session_id={session_id}"
-                    }
-                }
-            else:
-                fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
+        fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
                     user_data.get("nama", ""),
                     user_data.get("kota", ""),
                     user_data.get("tanggal_lahir", "")
                 )
-                fortune_full_prompt = PromptService.format_full_prompt(
+        fortune_full_prompt = PromptService.format_full_prompt(
                     user_data.get("nama", ""),
                     user_data.get("kota", ""),
                     user_data.get("tanggal_lahir", "")
                 ) 
-                # logger.info("Generating new fortune full & gimmick")
-                async def generate_fortune_full():
+        # logger.info("Generating new fortune full & gimmick")
+        async def generate_fortune_full():
                     fortune_full = await llm_service.ainvoke(fortune_full_prompt)
                     await session_service.save_user_data(session_id, {"ramalan_full": fortune_full})
                     logger.info(f"FINISHED generating Full Fortune for user:{session_id}")
-                asyncio.create_task(generate_fortune_full())
-                fortune_gimmick = await llm_service.ainvoke(fortune_gimmick_prompt)
-                await session_service.save_user_data(session_id, {"ramalan_gimmick": fortune_gimmick})
-                return {
+        asyncio.create_task(generate_fortune_full())
+        fortune_gimmick = await llm_service.ainvoke(fortune_gimmick_prompt)
+        await session_service.save_user_data(session_id, {"ramalan_gimmick": fortune_gimmick})
+        return {
                     "messages": messages + [AIMessage(content=fortune_gimmick)],
                     "user_data": user_data,
                     "next_step": "complete",
@@ -170,17 +167,6 @@ async def chatbot_node(state: AgentState) -> AgentState:
                         "url": f"{settings.sso_register_url}?session_id={session_id}"
                     }
                 }
-        else:
-            return {
-                "messages": messages + [AIMessage(content="Data kamu sudah lengkap! Klik tombol di bawah untuk melihat ramalan karirmu.")],
-                "user_data": user_data,
-                "next_step": "complete",
-                "session_id": session_id,
-                "is_returning_user": state["is_returning_user"],
-                "intent": state.get("intent", "answering"),
-                "fortune_full": state.get("fortune_full", ""),
-                "interactive_options": {"type": "fortune_trigger", "text": "🔮 Ramalan Karir"}
-            }
 
     prompt = PromptService.format_collector_prompt(user_data, next_step)
     response_content = await llm_service.ainvoke(prompt)
@@ -241,5 +227,5 @@ async def rag_node(state: AgentState) -> AgentState:
         "is_returning_user": state["is_returning_user"],
         "intent": state.get("intent", "asking"),
         "fortune_full": state.get("fortune_full", ""),
-        "interactive_options": state.get("interactive_options")
+        "interactive_options": None
     }
