@@ -8,6 +8,11 @@ def route_entry(state: AgentState) -> str:
     return "chatbot"
 
 def route_by_intent(state: AgentState) -> str:
+    current_step = state.get("next_step")
+
+    if current_step and current_step != "complete":
+        return "chatbot"
+    
     mandatory_fields = ["nama", "kota", "tanggal_lahir"]
     mandatory_complete = all(state["user_data"].get(f) for f in mandatory_fields)
     

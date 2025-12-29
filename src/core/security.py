@@ -20,6 +20,47 @@ def validate_email(email: str) -> bool:
     return bool(re.match(pattern, email))
 
 
+def check_email_typo(email: str) -> Tuple[bool, Optional[str]]:
+    """
+    Check for common email domain typos.
+    Returns (is_valid: bool, suggestion: str | None)
+    """
+    common_domains = {
+        "gmail.com": ["gmil.com", "gmal.com", "gmali.com", "gmaill.com", "gmai.com", "gmail.co", "ymail.com"],
+        "yahoo.com": ["yaho.com", "yahoo.co", "yhoo.com", "yahoo.co.id"],
+        "hotmail.com": ["hotmil.com", "hotmal.com", "hotmail.co"],
+        "outlook.com": ["outlok.com", "outlook.co"],
+        "icloud.com": ["iclud.com", "icloud.co"]
+    }
+    
+    try:
+        domain = email.split("@")[1]
+    except IndexError:
+        return False, None
+        
+    for correct, typos in common_domains.items():
+        if domain in typos:
+            return False, correct
+            
+    return True, None
+
+#Wrapper function 
+def validate_and_check_email(email: str) -> Tuple[bool, Optional[str]]:
+    """
+    Wrapper to validate format and check for typos.
+    Returns (is_valid: bool, error_code: str | None)
+    error_code can be 'invalid_format' or 'typo_detected'
+    """
+    if not validate_email(email):
+        return False, "invalid_format"
+        
+    is_typo_free, _ = check_email_typo(email)
+    if not is_typo_free:
+        return False, "typo_detected"
+        
+    return True, None
+
+
 def validate_phone(phone: str) -> bool:
     """Validate Indonesian phone number"""
     cleaned = phone.replace("-", "").replace(" ", "").replace("+", "")

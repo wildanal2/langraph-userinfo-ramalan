@@ -2,15 +2,18 @@ import asyncio
 from langchain_core.messages import HumanMessage, AIMessage
 from src.models.state import AgentState
 from src.services import LLMService, SessionService, PromptService
+from src.services.auth_service import AuthService
 from src.rag.retrieval.rag_pipeline import rag_pipeline
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.security import validate_email, validate_phone, validate_date, validate_location
+from src.core.security import validate_phone, validate_date, validate_location, validate_and_check_email
 
 logger = get_logger(__name__)
 
 llm_service = LLMService()
 session_service = SessionService()
+auth_service = AuthService()
+
 def get_rag_chat():
     return rag_pipeline.chat()
 
@@ -43,9 +46,23 @@ async def chatbot_node(state: AgentState) -> AgentState:
         for key in all_fields:
             extracted_val = getattr(extracted, key)
             if extracted_val and not user_data.get(key):
-                if key == "email" and not validate_email(extracted_val):
-                    validation_failed = (key, user_input, "invalid_format")
-                    break
+                if key == "email":
+                    extracted_val = extracted_val.strip().lower()
+                    
+                    is_valid, error_code = validate_and_check_email(extracted_val)
+                    
+                    if not is_valid:
+                        if error_code == "typo_detected":
+                             validation_failed = (key, user_input, "custom_error", "Format emailnya kurang tepat, tolong input format email dengan benar.")
+                        else:
+                             validation_failed = (key, user_input, error_code)
+                        break
+                        
+                    is_available, error_msg = await auth_service.check_email(extracted_val)
+                    if not is_available:
+                        validation_failed = (key, user_input, "custom_error", error_msg)
+                        break
+                        
                 if key == "no_telepon" and not validate_phone(extracted_val):
                     validation_failed = (key, user_input, "invalid_format")
                     break
@@ -66,16 +83,19 @@ async def chatbot_node(state: AgentState) -> AgentState:
     
     # Handle validation error
     if validation_failed:
-        field_name, invalid_input, error_code = validation_failed
-        user_name = user_data.get("nama", "")
-        error_prompt = PromptService.format_validation_error(
-            user_name=user_name,
-            invalid_input=invalid_input,
-            field_name=field_name,
-            error_code=error_code
-        )
-        
-        response_content = await llm_service.ainvoke(error_prompt)
+        if len(validation_failed) == 4:
+            field_name, invalid_input, _, custom_msg = validation_failed
+            response_content = custom_msg
+        else:
+            field_name, invalid_input, error_code = validation_failed
+            user_name = user_data.get("nama", "")
+            error_prompt = PromptService.format_validation_error(
+                user_name=user_name,
+                invalid_input=invalid_input,
+                field_name=field_name,
+                error_code=error_code
+            )
+            response_content = await llm_service.ainvoke(error_prompt)
         
         return {
             "messages": messages + [AIMessage(content=response_content)],

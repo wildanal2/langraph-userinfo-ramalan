@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     sso_register_url: str = "https://your-sso-link.com/register"
     redis_url: str = "redis://default@127.0.0.1:6379"
     redis_ttl: int = 86400  # 24 hours
+    check_email_url: str = "http://localhost:8000/auth/check-email"
+    auth_username: str = "username"
+    auth_password: str = "password"
     
     # LLM Configuration
     llm_timeout: int = 30

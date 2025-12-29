@@ -23,6 +23,7 @@ dependencies = [
     "pymupdf==1.26.4",
     "langwatch>=0.1.0",
     "geopy>=2.4.1",
+    "httpx>=0.28.1",
 ]
 
 [build-system]
