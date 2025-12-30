@@ -1,10 +1,7 @@
-import asyncio
 import re
 from datetime import datetime
 from typing import Tuple, Optional
-from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-
+from src.core.indonesia_locations import INDONESIA_CITIES_AND_REGENCIES
 
 def sanitize_input(text: str, max_length: int = 500) -> str:
     """Sanitize user input"""
@@ -14,17 +11,18 @@ def sanitize_input(text: str, max_length: int = 500) -> str:
     return text
 
 
-def validate_email(email: str) -> bool:
-    """Validate email format"""
+def validate_email(email: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate email format and check for typos.
+    Returns (is_valid: bool, error_code: str | None)
+    error_code can be 'invalid_format' or 'typo_detected'
+    """
+    # 1. Validate Format
     pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    return bool(re.match(pattern, email))
+    if not re.match(pattern, email):
+        return False, "invalid_format"
 
-
-def check_email_typo(email: str) -> Tuple[bool, Optional[str]]:
-    """
-    Check for common email domain typos.
-    Returns (is_valid: bool, suggestion: str | None)
-    """
+    # 2. Check for Typos
     common_domains = {
         "gmail.com": ["gmil.com", "gmal.com", "gmali.com", "gmaill.com", "gmai.com", "gmail.co", "ymail.com"],
         "yahoo.com": ["yaho.com", "yahoo.co", "yhoo.com", "yahoo.co.id"],
@@ -36,36 +34,36 @@ def check_email_typo(email: str) -> Tuple[bool, Optional[str]]:
     try:
         domain = email.split("@")[1]
     except IndexError:
-        return False, None
-        
+        return False, "invalid_format"
+    
     for correct, typos in common_domains.items():
         if domain in typos:
-            return False, correct
+            return False, "typo_detected"
             
     return True, None
 
-#Wrapper function 
-def validate_and_check_email(email: str) -> Tuple[bool, Optional[str]]:
-    """
-    Wrapper to validate format and check for typos.
-    Returns (is_valid: bool, error_code: str | None)
-    error_code can be 'invalid_format' or 'typo_detected'
-    """
-    if not validate_email(email):
-        return False, "invalid_format"
-        
-    is_typo_free, _ = check_email_typo(email)
-    if not is_typo_free:
-        return False, "typo_detected"
-        
-    return True, None
 
+def validate_phone(phone: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate and format Indonesian phone number.
+    Returns (is_valid: bool, formatted_phone: str | None)
+    Formatted phone will start with 62.
+    """
+    if not phone:
+        return False, None
 
-def validate_phone(phone: str) -> bool:
-    """Validate Indonesian phone number"""
     cleaned = phone.replace("-", "").replace(" ", "").replace("+", "")
     pattern = r"^(62|0)[0-9]{9,12}$"
-    return bool(re.match(pattern, cleaned))
+    
+    if not re.match(pattern, cleaned):
+        return False, None
+        
+    if cleaned.startswith("0"):
+        formatted = "62" + cleaned[1:]
+    else:
+        formatted = cleaned
+        
+    return True, formatted
 
 
 def validate_date(date_str: str) -> Tuple[bool, Optional[str], Optional[str]]:
@@ -74,8 +72,7 @@ def validate_date(date_str: str) -> Tuple[bool, Optional[str], Optional[str]]:
     Returns (is_valid: bool, error_code: str | None, formatted_date: str | None)
     error_code can be 'invalid_format' or 'future_date'.
     """
-    
-    # Mapping for Indonesian months to English for parsing
+
     indonesian_months = {
         "januari": "January", "februari": "February", "maret": "March",
         "april": "April", "mei": "May", "juni": "June",
@@ -83,7 +80,6 @@ def validate_date(date_str: str) -> Tuple[bool, Optional[str], Optional[str]]:
         "oktober": "October", "november": "November", "desember": "December"
     }
 
-    # Normalize input: lowercase and replace Indonesian months
     date_str_lower = date_str.lower()
     for id_month, en_month in indonesian_months.items():
         if id_month in date_str_lower:
@@ -113,49 +109,48 @@ def validate_date(date_str: str) -> Tuple[bool, Optional[str], Optional[str]]:
     return True, None, parsed_date.strftime("%d-%m-%Y")
 
 
-async def validate_location(location_name: str) -> Tuple[bool, str]:
+def validate_location(location_name: str) -> Tuple[bool, str]:
     """
-    Validate Indonesian location using geopy and Nominatim.
+    Validate Indonesian location by checking against a static list of cities/regencies.
     Returns (is_valid: bool, clean_name: str)
     """
-    geolocator = Nominatim(user_agent="ekraf_bot")
 
-    def geocode_sync():
-        try:
-            return geolocator.geocode(location_name, language="id", addressdetails=True)
-        except (GeocoderTimedOut, GeocoderServiceError) as e:
-            print(f"[WARNING] Geocoding service failed for '{location_name}': {e}")
-            return None # Return None on geocoding service errors
+    ALIAS_MAP = {
+        "jakarta": "Kota Jakarta Pusat",
+        "jogja": "Kota Yogyakarta",
+        "yogya": "Kota Yogyakarta",
+        "ujung pandang": "Kota Makassar"
+    }
 
-    try:
-        location = await asyncio.to_thread(geocode_sync)
+    normalized_input = location_name.strip().lower()
 
-        if not location:
-            # Be lenient on geocoding failure, accept user input
-            return True, location_name
+    if normalized_input in ALIAS_MAP:
+        return True, ALIAS_MAP[normalized_input]
 
-        raw_data = location.raw
-        address = raw_data.get("address", {})
+    normalized_input = normalized_input.replace(".", " ")
+    normalized_input = re.sub(r'\bkab\b', 'kabupaten', normalized_input)
+    normalized_input = re.sub(r'\bkodya\b', 'kota', normalized_input)
+    normalized_input = re.sub(r'\s+', ' ', normalized_input).strip()
+    
+    matched_location = None
+    
+    for loc in INDONESIA_CITIES_AND_REGENCIES:
+        if loc.lower() == normalized_input:
+            matched_location = loc
+            break
+    
+    if not matched_location:
+        matches = []
+        for loc in INDONESIA_CITIES_AND_REGENCIES:
+            clean_loc = loc.lower().replace("kabupaten ", "").replace("kota ", "")
+            if normalized_input == clean_loc:
+                matches.append(loc)
 
-        if address.get("country_code") != "id":
-            return False, location_name
+        if matches:
+            kota_match = next((m for m in matches if m.startswith("Kota")), None)
+            matched_location = kota_match if kota_match else matches[0]
 
-        detected_type = raw_data.get("addresstype") or raw_data.get("type")
+    if matched_location:
+        return True, matched_location
 
-        valid_types = ["city", "county"]
-
-        if detected_type not in valid_types:
-            return False, location_name
-
-        clean_name = (
-            address.get("city") or address.get("county")
-        )
-
-        if not clean_name:
-            clean_name = location.address.split(",")[0]
-
-        return True, clean_name
-
-    except Exception as e:
-        print(f"[ERROR] Location Validation Fail: {e}")
-        return True, location_name
+    return False, location_name
