@@ -1,0 +1,10 @@
+{
+  "collection_name": "rag_v_20251226_161600",
+  "updated_at": "2025-12-26T16:16:22.912457",
+  "chunking_config": {
+    "parent_chunk_size": 1000,
+    "parent_chunk_overlap": 100,
+    "child_chunk_size": 350,
+    "child_chunk_overlap": 50
+  }
+}
