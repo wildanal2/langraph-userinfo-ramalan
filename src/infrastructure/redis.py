@@ -26,7 +26,6 @@ class RedisClient:
         return cls._instance
     
     async def set(self, key: str, value: str, expire: int = None) -> None:
-        """Generic set method with optional expiration (TTL)"""
         try:
             await self.client.set(key, value, ex=expire)
         except Exception as e:
@@ -34,13 +33,12 @@ class RedisClient:
             raise ExternalServiceError(f"Redis set failed: {e}")
 
     async def get(self, key: str) -> Optional[str]:
-        """Generic get method"""
         try:
             return await self.client.get(key)
         except Exception as e:
             logger.error(f"Redis get failed: {e}")
             return None
-            
+
     async def save_user_data(self, session_id: str, user_data: dict) -> None:
         if not user_data:
             logger.warning(f"Skipping to save empty user data")

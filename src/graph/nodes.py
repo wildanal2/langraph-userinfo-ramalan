@@ -32,6 +32,8 @@ async def chatbot_node(state: AgentState) -> AgentState:
     session_id = state["session_id"]
 
     user_msg = messages[-1].content.lower() if messages and isinstance(messages[-1], HumanMessage) else ""
+    
+    # User Klik tombol "Ramalan Karir"
     if "ramalan karir" in user_msg:
         await session_service.delete_session(session_id)
         user_data = {}
@@ -140,7 +142,6 @@ async def chatbot_node(state: AgentState) -> AgentState:
 
     if next_step == "complete":
         if data_was_updated:
-            logger.info(f"User {session_id} completed data collection, generating fortune")
             fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
                 user_data.get("nama", ""),
                 user_data.get("kota", ""),
@@ -175,7 +176,7 @@ async def chatbot_node(state: AgentState) -> AgentState:
                 }
             }
         else:
-            logger.info(f"Masuk ke RAG")
+            # logger.info(f"Masuk ke RAG")
             return {
                 "messages": messages,
                 "user_data": user_data,

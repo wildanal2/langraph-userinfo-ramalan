@@ -54,7 +54,7 @@ async def start_message(request: StartRequest):
                 current_step = "complete"
                 is_returning_user = False  
 
-                # Ada session_id TAPI data Redis KOSONG (expired)
+                # Ada session_id tapi data Redis kosong (expired)
                 if request.session_id and not user_data:
                     is_returning_user = True
                     prompt = PromptService.format_welcome_returning("Sobat Kreatif")
@@ -65,7 +65,7 @@ async def start_message(request: StartRequest):
                             yield f"data: {json.dumps({'content': content, 'done': False})}\n\n"
                     interactive_options = {"type": "fortune_trigger", "text": "🔮 Ramalan Karir"}
 
-                # Ada session_id DAN data Redis Ada TAPI BELUM LENGKAP
+                # Ada session_id dan data Redis ada, tapi BELUM LENGKAP
                 elif user_data and next_missing_field:
                     is_returning_user = True
                     current_step = next_missing_field
@@ -81,7 +81,7 @@ async def start_message(request: StartRequest):
                     elif next_missing_field == "jumlah_komunitas_ekraf_disekitar":
                         interactive_options = {"type": "quick_reply", "options": KOMUNITAS_OPTIONS}
 
-                # Ada session_id & data Redis lengkap
+                # Ada session_id & data Redis sudah lengkap
                 elif user_data and not next_missing_field:
                     is_returning_user = True
                     prompt = PromptService.format_welcome_returning(user_data.get('nama', 'User'))
@@ -92,7 +92,7 @@ async def start_message(request: StartRequest):
                             yield f"data: {json.dumps({'content': content, 'done': False})}\n\n"
                     interactive_options = {"type": "fortune_trigger", "text": "🔮 Ramalan Karir"}
 
-                # TIDAK ada session_id = User BARU
+                # TIDAK ada session_id = User BARU pertama kali akses chatbot
                 else:
                     is_returning_user = False
                     response_content = PromptService.generate_welcome_new_user()
@@ -100,7 +100,7 @@ async def start_message(request: StartRequest):
                     current_step = "nama"
                     yield f"data: {json.dumps({'content': response_content, 'done': False})}\n\n"
 
-                # Simpan flag is_returning_user ke Redis
+                # Simpan flag is_returning_user ke Redis sementara (10 menit)
                 await session_service.set_returning_flag(session_id, is_returning_user)
 
                 trace.update(output=full_response)
@@ -129,20 +129,13 @@ async def chat_stream(request: ChatRequest):
         with langwatch.trace(name="chat_stream") as trace:
             try:
                 user_data = await session_service.get_user_data(session_id)
-                # PRIORITY CHECK untuk is_returning:
-                # 1. Dari session_state (jika conversation berlanjut)
-                # 2. Dari Redis flag (jika first message setelah /start-message)
-                # 3. Dari user_data existence (fallback)
                 if request.session_state:
                     is_returning = request.session_state.get("is_returning_user", False)
                 else:
-                    # First message: cek Redis flag
                     returning_flag = await session_service.get_returning_flag(session_id)
                     if returning_flag is not None:
-                        # Ada flag di Redis (dari /start-message)
                         is_returning = returning_flag
                     else:
-                        # Fallback: cek user_data
                         is_returning = user_data is not None
                 
                 if request.session_state:
@@ -178,12 +171,6 @@ async def chat_stream(request: ChatRequest):
                     }
                 
                 state["messages"].append(HumanMessage(content=request.message))
-                
-                # logger.info(f"Chat stream state: is_returning={is_returning}, "
-                #            f"user_data_is_none={user_data is None}, "
-                #            f"next_step={state.get('next_step')}, "
-                #            f"has_session_state={request.session_state is not None}, "
-                #            f"returning_flag_from_redis={(await session_service.get_returning_flag(session_id))}")
 
                 trace.update(input=request.message)
                 
