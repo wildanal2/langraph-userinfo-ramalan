@@ -54,6 +54,7 @@ async def chatbot_node(state: AgentState) -> AgentState:
     all_fields = mandatory_fields + optional_fields
 
     validation_failed = None
+    data_was_updated = False
     
     if messages and isinstance(messages[-1], HumanMessage):
         user_input = messages[-1].content
@@ -64,6 +65,7 @@ async def chatbot_node(state: AgentState) -> AgentState:
         for key in all_fields:
             extracted_val = getattr(extracted, key)
             if extracted_val and not user_data.get(key):
+                data_was_updated = True 
                 if key == "email":
                     extracted_val = extracted_val.strip().lower()
                     
@@ -97,7 +99,9 @@ async def chatbot_node(state: AgentState) -> AgentState:
                         break
                     extracted_val = normalized_loc
                 user_data[key] = extracted_val
-        await session_service.save_user_data(session_id, user_data)
+
+        if data_was_updated:
+            await session_service.save_user_data(session_id, user_data)
     
     # Handle validation error
     if validation_failed:
@@ -135,38 +139,53 @@ async def chatbot_node(state: AgentState) -> AgentState:
         next_step = next((f for f in optional_fields if not user_data.get(f)), "complete")
 
     if next_step == "complete":
-        fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
-                    user_data.get("nama", ""),
-                    user_data.get("kota", ""),
-                    user_data.get("tanggal_lahir", "")
-                )
-        fortune_full_prompt = PromptService.format_full_prompt(
-                    user_data.get("nama", ""),
-                    user_data.get("kota", ""),
-                    user_data.get("tanggal_lahir", "")
-                ) 
-        # logger.info("Generating new fortune full & gimmick")
-        async def generate_fortune_full():
-                    fortune_full = await llm_service.ainvoke(fortune_full_prompt)
-                    await session_service.save_user_data(session_id, {"ramalan_full": fortune_full})
-                    logger.info(f"FINISHED generating Full Fortune for user:{session_id}")
-        asyncio.create_task(generate_fortune_full())
-        fortune_gimmick = await llm_service.ainvoke(fortune_gimmick_prompt)
-        await session_service.save_user_data(session_id, {"ramalan_gimmick": fortune_gimmick})
-        return {
-                    "messages": messages + [AIMessage(content=fortune_gimmick)],
-                    "user_data": user_data,
-                    "next_step": "complete",
-                    "session_id": session_id,
-                    "is_returning_user": state["is_returning_user"],
-                    "intent": state.get("intent", "answering"),
-                    "fortune_full": fortune_gimmick,
-                    "interactive_options": {
-                        "type": "sso_button", 
-                        "text": "✨ Cek Hasil Lengkapnya", 
-                        "url": f"{settings.sso_register_url}?session_id={session_id}"
-                    }
+        if data_was_updated:
+            logger.info(f"User {session_id} completed data collection, generating fortune")
+            fortune_gimmick_prompt = PromptService.format_gimmick_prompt(
+                user_data.get("nama", ""),
+                user_data.get("kota", ""),
+                user_data.get("tanggal_lahir", "")
+            )
+            fortune_full_prompt = PromptService.format_full_prompt(
+                user_data.get("nama", ""),
+                user_data.get("kota", ""),
+                user_data.get("tanggal_lahir", "")
+            ) 
+            
+            async def generate_fortune_full():
+                fortune_full = await llm_service.ainvoke(fortune_full_prompt)
+                await session_service.save_user_data(session_id, {"ramalan_full": fortune_full})
+                logger.info(f"FINISHED generating Full Fortune for user:{session_id}")
+            asyncio.create_task(generate_fortune_full())
+            
+            fortune_gimmick = await llm_service.ainvoke(fortune_gimmick_prompt)
+            
+            return {
+                "messages": messages + [AIMessage(content=fortune_gimmick)],
+                "user_data": user_data,
+                "next_step": "complete",
+                "session_id": session_id,
+                "is_returning_user": state["is_returning_user"],
+                "intent": state.get("intent", "answering"),
+                "fortune_full": fortune_gimmick,
+                "interactive_options": {
+                    "type": "sso_button", 
+                    "text": "✨ Cek Hasil Lengkapnya", 
+                    "url": f"{settings.sso_register_url}?session_id={session_id}"
                 }
+            }
+        else:
+            logger.info(f"Masuk ke RAG")
+            return {
+                "messages": messages,
+                "user_data": user_data,
+                "next_step": "complete",
+                "session_id": session_id,
+                "is_returning_user": state["is_returning_user"],
+                "intent": state.get("intent", "answering"), 
+                "fortune_full": state.get("fortune_full", ""),
+                "interactive_options": None
+            }
 
     prompt = PromptService.format_collector_prompt(user_data, next_step)
     response_content = await llm_service.ainvoke(prompt)

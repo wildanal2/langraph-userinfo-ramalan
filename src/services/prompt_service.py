@@ -110,7 +110,7 @@ class PromptService:
     Task: Write the message in max 2 sentences. 
     1. You MUST bold the user's **Name**.
     2. You MUST use this specific closing phrase (adapted to 'kamu'): 
-       "Kamu bisa bertanya seputar **ICCN** dan **ICCF** ataupun mengetahui **Ramalan Karir** kamu dengan mengklik tombol di bawah ini."
+       "Kamu bisa bertanya seputar **ICCN** dan **ICCF**, atau klik tombol di bawah untuk **Buat Ramalan Karir Baru** (siapkan data terbarumu ya!)."
     """
     
     INTENT_CLASSIFICATION = """

@@ -34,7 +34,6 @@ def extract_content(chunk):
         return "".join([item.get('text', '') for item in chunk.content if isinstance(item, dict)])
     return ""
 
-# Cek ada atau tidaknya di redis
 @router.post("/start-message", dependencies=[Depends(verify_content_length)])
 async def start_message(request: StartRequest):
     async def generate():
@@ -53,9 +52,22 @@ async def start_message(request: StartRequest):
                 full_response = ""
                 interactive_options = None
                 current_step = "complete"
+                is_returning_user = False  
 
-                # Returning User Data Belum Lengkap
-                if user_data and next_missing_field:
+                # Ada session_id TAPI data Redis KOSONG (expired)
+                if request.session_id and not user_data:
+                    is_returning_user = True
+                    prompt = PromptService.format_welcome_returning("Sobat Kreatif")
+                    async for chunk in llm_service.astream(prompt):
+                        content = extract_content(chunk)
+                        if content:
+                            full_response += content
+                            yield f"data: {json.dumps({'content': content, 'done': False})}\n\n"
+                    interactive_options = {"type": "fortune_trigger", "text": "🔮 Ramalan Karir"}
+
+                # Ada session_id DAN data Redis Ada TAPI BELUM LENGKAP
+                elif user_data and next_missing_field:
+                    is_returning_user = True
                     current_step = next_missing_field
                     prompt = PromptService.format_collector_prompt(user_data, next_missing_field)
                     async for chunk in llm_service.astream(prompt):
@@ -69,8 +81,9 @@ async def start_message(request: StartRequest):
                     elif next_missing_field == "jumlah_komunitas_ekraf_disekitar":
                         interactive_options = {"type": "quick_reply", "options": KOMUNITAS_OPTIONS}
 
-                # Returning User Data sudah lengkap
+                # Ada session_id & data Redis lengkap
                 elif user_data and not next_missing_field:
+                    is_returning_user = True
                     prompt = PromptService.format_welcome_returning(user_data.get('nama', 'User'))
                     async for chunk in llm_service.astream(prompt):
                         content = extract_content(chunk)
@@ -79,19 +92,23 @@ async def start_message(request: StartRequest):
                             yield f"data: {json.dumps({'content': content, 'done': False})}\n\n"
                     interactive_options = {"type": "fortune_trigger", "text": "🔮 Ramalan Karir"}
 
-                # User Baru, belum ada data
+                # TIDAK ada session_id = User BARU
                 else:
+                    is_returning_user = False
                     response_content = PromptService.generate_welcome_new_user()
                     full_response = response_content
                     current_step = "nama"
                     yield f"data: {json.dumps({'content': response_content, 'done': False})}\n\n"
+
+                # Simpan flag is_returning_user ke Redis
+                await session_service.set_returning_flag(session_id, is_returning_user)
 
                 trace.update(output=full_response)
                 final_payload = {
                     "content": "",
                     "done": True,
                     "session_id": session_id,
-                    "is_returning_user": user_data is not None,
+                    "is_returning_user": is_returning_user,
                     "user_data": user_data or {},
                     "next_step": current_step,
                     "interactive_options": interactive_options
@@ -112,7 +129,22 @@ async def chat_stream(request: ChatRequest):
         with langwatch.trace(name="chat_stream") as trace:
             try:
                 user_data = await session_service.get_user_data(session_id)
-                is_returning = user_data is not None
+                # PRIORITY CHECK untuk is_returning:
+                # 1. Dari session_state (jika conversation berlanjut)
+                # 2. Dari Redis flag (jika first message setelah /start-message)
+                # 3. Dari user_data existence (fallback)
+                if request.session_state:
+                    is_returning = request.session_state.get("is_returning_user", False)
+                else:
+                    # First message: cek Redis flag
+                    returning_flag = await session_service.get_returning_flag(session_id)
+                    if returning_flag is not None:
+                        # Ada flag di Redis (dari /start-message)
+                        is_returning = returning_flag
+                    else:
+                        # Fallback: cek user_data
+                        is_returning = user_data is not None
+                
                 if request.session_state:
                     state = request.session_state
                     if state.get("messages") and isinstance(state["messages"][0], dict):
@@ -121,18 +153,37 @@ async def chat_stream(request: ChatRequest):
                             else AIMessage(content=m["content"]) 
                             for m in state["messages"]
                         ]
+                    state["user_data"] = user_data or {}
+                    state["session_id"] = session_id
+                    state["is_returning_user"] = is_returning
                 else:
+                    if is_returning and user_data is None:
+                        next_step = "complete"
+                    elif user_data:
+                        mandatory_fields = ["nama", "kota", "tanggal_lahir"]
+                        optional_fields = ["bidang_ekraf", "jumlah_komunitas_ekraf_disekitar", "email", "no_telepon"]
+                        all_fields = mandatory_fields + optional_fields
+                        next_missing = next((f for f in all_fields if not user_data.get(f)), None)
+                        next_step = next_missing or "complete"
+                    else:
+                        next_step = "nama"
+                    
                     state = {
                         "messages": [],
                         "user_data": user_data or {},
-                        "next_step": "nama",
+                        "next_step": next_step,
                         "session_id": session_id,
                         "is_returning_user": is_returning,
                         "intent": "answering"
                     }
+                
                 state["messages"].append(HumanMessage(content=request.message))
-                state["session_id"] = session_id
-                state["is_returning_user"] = is_returning
+                
+                # logger.info(f"Chat stream state: is_returning={is_returning}, "
+                #            f"user_data_is_none={user_data is None}, "
+                #            f"next_step={state.get('next_step')}, "
+                #            f"has_session_state={request.session_state is not None}, "
+                #            f"returning_flag_from_redis={(await session_service.get_returning_flag(session_id))}")
 
                 trace.update(input=request.message)
                 
