@@ -6,7 +6,7 @@ from src.services.auth_service import AuthService
 from src.rag.retrieval.rag_pipeline import rag_pipeline
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.security import validate_phone, validate_date, validate_location, validate_and_check_email
+from src.core.security import validate_phone, validate_date, validate_location, validate_email
 
 logger = get_logger(__name__)
 
@@ -49,7 +49,7 @@ async def chatbot_node(state: AgentState) -> AgentState:
                 if key == "email":
                     extracted_val = extracted_val.strip().lower()
                     
-                    is_valid, error_code = validate_and_check_email(extracted_val)
+                    is_valid, error_code = validate_email(extracted_val)
                     
                     if not is_valid:
                         if error_code == "typo_detected":
@@ -63,9 +63,13 @@ async def chatbot_node(state: AgentState) -> AgentState:
                         validation_failed = (key, user_input, "custom_error", error_msg)
                         break
                         
-                if key == "no_telepon" and not validate_phone(extracted_val):
-                    validation_failed = (key, user_input, "invalid_format")
-                    break
+                if key == "no_telepon":
+                    is_valid, formatted_phone = validate_phone(extracted_val)
+                    if not is_valid:
+                        validation_failed = (key, user_input, "invalid_format")
+                        break
+                    extracted_val = formatted_phone
+
                 if key == "tanggal_lahir":
                     is_valid, error_code, formatted_date = validate_date(extracted_val)
                     if not is_valid:
@@ -73,7 +77,7 @@ async def chatbot_node(state: AgentState) -> AgentState:
                         break
                     extracted_val = formatted_date 
                 if key == "kota":
-                    is_valid_loc, normalized_loc = await validate_location(extracted_val)
+                    is_valid_loc, normalized_loc = validate_location(extracted_val)
                     if not is_valid_loc:
                         validation_failed = (key, user_input, "invalid_location")
                         break
