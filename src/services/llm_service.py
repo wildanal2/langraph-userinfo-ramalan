@@ -12,14 +12,15 @@ from src.core.config import settings
 logger = get_logger(__name__)
 
 class ExtractedData(BaseModel):
-    nama: str | None = Field(None, description="Nama lengkap user")
-    kota: str | None = Field(None, description="Kota domisili user")
+    nama: str | None = Field(None, description="Nama, User : Nama saya Budi Santoso -> Extracted Result : Budi Santoso, User : namaku satya -> Extracted Result : satya")
+    kota: str | None = Field(None, description="Kota atau kabupaten domisili user")
     tanggal_lahir: str | None = Field(None, description="Tanggal lahir user dalam format DD-MM-YYYY. Ekstrak dan konversi dari format apapun (contoh: '12 Desember 2003' menjadi '12-12-2003', '12.10.2002' menjadi '12-10-2002')")
-    bidang_ekraf: str | None = Field(None, description="Bidang ekonomi kreatif yang ditekuni")
-    jumlah_komunitas_ekraf_disekitar: str | None = Field(None, description="Informasi keberadaan komunitas ekraf di sekitar user. Bisa berupa: 'Ada', 'Ada, banyak', 'Tidak Ada', atau angka/deskripsi lainnya")
+    bidang_ekraf: str | None = Field(None, description="Bidang ekonomi kreatif yang ditekuni. ANSWER CHOICE : Aplikasi, Arsitektur, Desain Interior, Desain Komunikasi Visual (DKV), Desain Produk, Fashion, Film, Animasi, dan Video, Fotografi, Kriya (kerajinan), Kuliner, Musik, Penerbitan, Periklanan, Seni Pertunjukan, Seni Rupa, Televisi dan Radio, Permainan Interaktif (Game Developer)")
+    jumlah_komunitas_ekraf_disekitar: str | None = Field(None, description="Informasi jumlah komunitas ekraf di sekitar user. ANSWER CHOICE: Ada, Ada banyak, Tidak Ada")
     email: str | None = Field(None, description="Alamat email valid")
     no_telepon: str | None = Field(None, description="Nomor telepon")
-    harapan: str | None = Field(None, description="Harapan atau tujuan user")
+
+# harapan: str | None = Field(None, description="Harapan atau tujuan user")
 
 class IntentClassification(BaseModel):
     intent: str = Field(description="'answering' if user is responding to question, 'asking' if user is asking question")
