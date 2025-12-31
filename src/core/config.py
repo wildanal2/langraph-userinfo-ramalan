@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 60
     
     # External Services
-    sso_register_url: str = "https://your-sso-link.com/register"
+    sso_register_url: str = "https://api-dev.iccn.or.id/auth/google/redirect"
     redis_url: str = "redis://default@127.0.0.1:6379"
     redis_ttl: int = 86400  # 24 hours
     check_email_url: str = "http://localhost:8000/auth/check-email"
@@ -33,11 +33,6 @@ class Settings(BaseSettings):
     # LLM Configuration
     llm_timeout: int = 30
     llm_max_retries: int = 3
-    
-    # LangWatch Configuration
-    langwatch_api_key: str = ""
-    langwatch_endpoint: str = "https://app.langwatch.ai"
-    langwatch_enabled: bool = True
     
     # LangWatch Configuration
     langwatch_api_key: str = ""
